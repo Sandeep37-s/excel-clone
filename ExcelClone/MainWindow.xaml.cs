@@ -827,7 +827,63 @@ namespace ExcelClone
                     sheet = spreadsheetControl.Workbook.Worksheets[0];
                 if (sheet == null) return;
 
-                if (templateName == "Finance")
+                if (templateName == "Tour")
+                {
+                    sheet.Name = "Welcome_Tour";
+                    sheet.Range["A1:F1"].Merge();
+                    sheet.Range["A1"].Text = "Welcome to ExcelClone Professional";
+                    sheet.Range["A1"].CellStyle.Font.Bold = true;
+                    sheet.Range["A1"].CellStyle.Font.Size = 16;
+                    sheet.Range["A1"].CellStyle.Font.Color = Syncfusion.XlsIO.ExcelKnownColors.White;
+                    sheet.Range["A1:F1"].CellStyle.Color = System.Drawing.Color.FromArgb(16, 124, 65);
+
+                    sheet.Range["A3"].Text = "Feature"; sheet.Range["B3"].Text = "Description"; sheet.Range["C3"].Text = "Shortcut / Tip";
+                    sheet.Range["A3:C3"].CellStyle.Font.Bold = true;
+
+                    string[,] tourData = {
+                        { "Ribbon Interface", "Full Office-style tabs for Home, Insert, Formulas, Data, View, and Settings.", "Ctrl+F1 to collapse/expand" },
+                        { "Formula Calculation", "Over 500 supported functions: Math, Statistics, Financial, Lookup, and Text.", "=SUM(), =VLOOKUP(), =PMT()" },
+                        { "OpenXML Compatibility", "Lossless roundtrip opening and saving of .xlsx, .xlsm, and .csv files.", "Ctrl+S to save, Ctrl+O to open" },
+                        { "Data Tools", "Integrated data transformation, column splitting, deduplication, and sorting.", "Data tab -> Data Transformation" },
+                        { "Numerical Analysis", "Descriptive statistics, linear regression, and Goal Seek targeting.", "Formulas tab -> Goal Seek" }
+                    };
+
+                    for (int i = 0; i < tourData.GetLength(0); i++)
+                    {
+                        sheet.Range[i + 4, 1].Text = tourData[i, 0];
+                        sheet.Range[i + 4, 2].Text = tourData[i, 1];
+                        sheet.Range[i + 4, 3].Text = tourData[i, 2];
+                    }
+                    sheet.EnableSheetCalculations();
+                    sheet.UsedRange.AutofitColumns();
+                    UpdateTitle("Welcome_To_ExcelClone");
+                    StatusText.Text = "Applied Welcome Tour template.";
+                }
+                else if (templateName == "Formula")
+                {
+                    sheet.Name = "Formula_Tutorial";
+                    sheet.Range["A1:E1"].Merge();
+                    sheet.Range["A1"].Text = "Getting Started with Formulas";
+                    sheet.Range["A1"].CellStyle.Font.Bold = true;
+                    sheet.Range["A1"].CellStyle.Font.Size = 16;
+                    sheet.Range["A1"].CellStyle.Font.Color = Syncfusion.XlsIO.ExcelKnownColors.White;
+                    sheet.Range["A1:E1"].CellStyle.Color = System.Drawing.Color.FromArgb(16, 124, 65);
+
+                    sheet.Range["A3"].Text = "Category"; sheet.Range["B3"].Text = "Example Formula"; sheet.Range["C3"].Text = "Live Result"; sheet.Range["D3"].Text = "Explanation";
+                    sheet.Range["A3:D3"].CellStyle.Font.Bold = true;
+
+                    sheet.Range["A4"].Text = "Math"; sheet.Range["B4"].Text = "=SUM(10, 25, 65)"; sheet.Range["C4"].Formula = "=SUM(10, 25, 65)"; sheet.Range["D4"].Text = "Adds all arguments together";
+                    sheet.Range["A5"].Text = "Math"; sheet.Range["B5"].Text = "=AVERAGE(20, 40, 60)"; sheet.Range["C5"].Formula = "=AVERAGE(20, 40, 60)"; sheet.Range["D5"].Text = "Calculates arithmetic mean";
+                    sheet.Range["A6"].Text = "Logic"; sheet.Range["B6"].Text = "=IF(10 > 5, \"Pass\", \"Fail\")"; sheet.Range["C6"].Formula = "=IF(10 > 5, \"Pass\", \"Fail\")"; sheet.Range["D6"].Text = "Conditional branch test";
+                    sheet.Range["A7"].Text = "Text"; sheet.Range["B7"].Text = "=CONCATENATE(\"Excel\", \"Clone\")"; sheet.Range["C7"].Formula = "=CONCATENATE(\"Excel\", \"Clone\")"; sheet.Range["D7"].Text = "Joins text strings together";
+                    sheet.Range["A8"].Text = "Financial"; sheet.Range["B8"].Text = "=ROUND(PMT(0.05/12, 60, -25000), 2)"; sheet.Range["C8"].Formula = "=ROUND(PMT(0.05/12, 60, -25000), 2)"; sheet.Range["D8"].Text = "Monthly loan repayment";
+
+                    sheet.EnableSheetCalculations();
+                    sheet.UsedRange.AutofitColumns();
+                    UpdateTitle("Formula_Tutorial");
+                    StatusText.Text = "Applied Formula Tutorial template.";
+                }
+                else if (templateName == "Finance")
                 {
                     sheet.Name = "Financial_Projection";
                     sheet.Range["A1"].Text = "Year";

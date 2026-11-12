@@ -1,0 +1,44 @@
+# Build Results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+TestResults/
+*.tmp
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Sensitive Data & Secrets
+*.env
+*.env.*
+!*.env.example
+*.key
+*.pem
+*.pfx
+*.p12
+*.token
+*.secret
+syncfusion_license.txt
+appsettings.Production.json
+
+# Operating System Files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Scratch and transient test runs
+scratch/bin/
+scratch/obj/
+scratch/WpfUiStress_bin/
+
+# Distribution Binaries & Archives (Publish to GitHub Releases)
+Distribution/ExcelClone_Portable/
+Distribution/*.zip
+

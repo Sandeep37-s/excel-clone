@@ -1,0 +1,72 @@
+<Window x:Class="EFM_BOM_App.PivotDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Create PivotTable" Height="380" Width="480"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F5F5F5">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Create PivotTable" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+        <GroupBox Grid.Row="1" Header="Choose the data that you want to analyze" Margin="0,0,0,10">
+            <StackPanel Margin="8">
+                <TextBlock Text="Table/Range:" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtSourceRange" Text="A1:D9" Padding="4"/>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Grid.Row="2" Header="Configure PivotTable Fields" Margin="0,0,0,10">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Row Field (Index):" VerticalAlignment="Center" Margin="0,4"/>
+                <ComboBox x:Name="CmbRowField" Grid.Row="0" Grid.Column="1" SelectedIndex="0" Margin="0,4"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Column Field (Index):" VerticalAlignment="Center" Margin="0,4"/>
+                <ComboBox x:Name="CmbColField" Grid.Row="1" Grid.Column="1" SelectedIndex="3" Margin="0,4"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Value Field (Index):" VerticalAlignment="Center" Margin="0,4"/>
+                <ComboBox x:Name="CmbValueField" Grid.Row="2" Grid.Column="1" SelectedIndex="2" Margin="0,4"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Aggregation:" VerticalAlignment="Center" Margin="0,4"/>
+                <ComboBox x:Name="CmbAggregation" Grid.Row="3" Grid.Column="1" SelectedIndex="0" Margin="0,4">
+                    <ComboBoxItem Content="Sum"/>
+                    <ComboBoxItem Content="Count"/>
+                    <ComboBoxItem Content="Average"/>
+                    <ComboBoxItem Content="Max"/>
+                    <ComboBoxItem Content="Min"/>
+                </ComboBox>
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="3" Header="Choose where you want the PivotTable report to be placed" Margin="0,0,0,12">
+            <StackPanel Margin="8">
+                <RadioButton x:Name="RbNewSheet" Content="New Worksheet" IsChecked="True" Margin="0,2"/>
+                <RadioButton x:Name="RbExistingSheet" Content="Existing Worksheet (at current selection)" Margin="0,2"/>
+                <CheckBox x:Name="ChkCreatePivotChart" Content="Create Linked Visual PivotChart" IsChecked="True" Margin="0,6,0,0"/>
+            </StackPanel>
+        </GroupBox>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="BtnOk" Content="OK" Width="80" Height="26" Margin="0,0,8,0" IsDefault="True" Click="BtnOk_Click"/>
+            <Button x:Name="BtnCancel" Content="Cancel" Width="80" Height="26" IsCancel="True" Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

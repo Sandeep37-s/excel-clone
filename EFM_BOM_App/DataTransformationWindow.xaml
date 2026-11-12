@@ -1,0 +1,85 @@
+<Window x:Class="EFM_BOM_App.DataTransformationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ExcelClone — Data Transformation Studio (Power Query)"
+        Height="700" Width="1100"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F6F7">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Command Toolbar -->
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#D0D0D0" BorderThickness="0,0,0,1" Padding="8">
+            <WrapPanel Orientation="Horizontal">
+                <Button x:Name="BtnLoadSource" Content="Import File..." Margin="4" Padding="10,4" Click="BtnLoadSource_Click"/>
+                <Separator Margin="6,2"/>
+                <Button x:Name="BtnRemoveDuplicates" Content="Remove Duplicates" Margin="4" Padding="10,4" Click="BtnRemoveDuplicates_Click"/>
+                <Button x:Name="BtnFilterRows" Content="Filter Rows..." Margin="4" Padding="10,4" Click="BtnFilterRows_Click"/>
+                <Button x:Name="BtnSplitColumn" Content="Split Column..." Margin="4" Padding="10,4" Click="BtnSplitColumn_Click"/>
+                <Button x:Name="BtnMergeColumns" Content="Merge Columns..." Margin="4" Padding="10,4" Click="BtnMergeColumns_Click"/>
+                <Button x:Name="BtnReplaceValues" Content="Replace Values..." Margin="4" Padding="10,4" Click="BtnReplaceValues_Click"/>
+                <Button x:Name="BtnGroupBy" Content="Group &amp; Aggregate..." Margin="4" Padding="10,4" Click="BtnGroupBy_Click"/>
+                <Separator Margin="6,2"/>
+                <Button x:Name="BtnReset" Content="Reset All Steps" Margin="4" Padding="10,4" Click="BtnReset_Click"/>
+                <Separator Margin="6,2"/>
+                <Button x:Name="BtnApplyAndLoad" Content="Apply &amp; Load to Sheet" Margin="4" Padding="14,4" Background="#107C41" Foreground="White" FontWeight="SemiBold" Click="BtnApplyAndLoad_Click"/>
+            </WrapPanel>
+        </Border>
+
+        <!-- Main Workspace: DataGrid & Applied Steps -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="260"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Transformed Data Grid -->
+            <DataGrid Grid.Column="0" x:Name="GridPreview"
+                      AutoGenerateColumns="True"
+                      IsReadOnly="False"
+                      CanUserAddRows="False"
+                      GridLinesVisibility="All"
+                      AlternatingRowBackground="#F9F9F9"
+                      HeadersVisibility="All"
+                      Margin="8"/>
+
+            <!-- Applied Steps Panel -->
+            <Border Grid.Column="1" Background="#FFFFFF" BorderBrush="#D0D0D0" BorderThickness="1,0,0,0" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Applied Steps" FontSize="14" FontWeight="Bold" Foreground="#333333" Margin="0,0,0,10"/>
+
+                    <ListBox Grid.Row="1" x:Name="ListSteps" BorderBrush="#E0E0E0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="2">
+                                    <TextBlock Text="⚙ " Foreground="#107C41" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Grid.Row="2" x:Name="TxtRowCount" Text="Rows: 0 | Columns: 0" FontSize="11" Foreground="#666666" Margin="0,8,0,0"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2" Background="#EAEAEA" Height="24">
+            <StatusBarItem>
+                <TextBlock x:Name="TxtStatus" Text="Ready" FontSize="11" Foreground="#333333"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
+

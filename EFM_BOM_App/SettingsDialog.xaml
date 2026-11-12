@@ -1,0 +1,68 @@
+<Window x:Class="EFM_BOM_App.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ExcelClone — Application Settings"
+        Height="420" Width="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F5F6F7">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="150"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
+        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="CmbTheme" Height="26" Margin="0,0,0,14">
+            <ComboBoxItem Content="Office 2019 Colorful (Default)"/>
+            <ComboBoxItem Content="Office 2019 Dark Gray"/>
+        </ComboBox>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Auto-Save Interval:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
+        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="CmbAutoSave" Height="26" Margin="0,0,0,14">
+            <ComboBoxItem Content="1 Minute"/>
+            <ComboBoxItem Content="5 Minutes (Default)"/>
+            <ComboBoxItem Content="10 Minutes"/>
+            <ComboBoxItem Content="Disabled"/>
+        </ComboBox>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Calculation Mode:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
+        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="CmbCalcMode" Height="26" Margin="0,0,0,14">
+            <ComboBoxItem Content="Automatic (Recalculate on Edit)"/>
+            <ComboBoxItem Content="Manual (Recalculate on Demand)"/>
+        </ComboBox>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Display &amp; DPI:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="Per-Monitor V2 High DPI Enabled" Foreground="#107C41" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12"/>
+
+        <!-- Log File Management -->
+        <Border Grid.Row="4" Grid.ColumnSpan="2" Background="#FFFFFF" BorderBrush="#D0D0D0" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,5,0,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Application Logs" FontWeight="Bold" Margin="0,0,0,6"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Open Log Directory" Height="26" Padding="10,0" Margin="0,0,10,0" Click="BtnOpenLogDir_Click"/>
+                    <Button Content="View Recent Logs..." Height="26" Padding="10,0" Click="BtnViewLogs_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Save Settings" Width="100" Height="28" Margin="0,0,10,0" Background="#107C41" Foreground="White" FontWeight="SemiBold" IsDefault="True" Click="BtnSave_Click"/>
+            <Button Content="Cancel" Width="80" Height="28" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

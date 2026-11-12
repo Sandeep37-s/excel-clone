@@ -1,7 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 
-namespace EFM_BOM_App.Services
+namespace ExcelClone.Services
 {
     public static class FormulaCompatibilityService
     {

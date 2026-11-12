@@ -2,5 +2,5 @@
   <Folder Name="/tests/">
     <Project Path="tests/ExcelClone.Tests/ExcelClone.Tests.csproj" />
   </Folder>
-  <Project Path="EFM_BOM_App/EFM_BOM_App.csproj" />
+  <Project Path="ExcelClone/ExcelClone.csproj" />
 </Solution>

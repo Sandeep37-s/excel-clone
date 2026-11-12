@@ -1,5 +1,5 @@
-$exe = Resolve-Path "Distribution\ExcelClone_Portable\ExcelClone.exe"
-$sample = Resolve-Path "samples\Sample_Manufacturing_BOM.xlsx"
+﻿$exe = Resolve-Path "Distribution\ExcelClone_Portable\ExcelClone.exe"
+$sample = Resolve-Path "samples\Sample_Workbook.xlsx"
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "  TESTING EXCELCLONE STANDALONE LAUNCH WITHOUT LOGIN      " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan

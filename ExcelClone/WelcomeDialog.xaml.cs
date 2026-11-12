@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 
-namespace EFM_BOM_App
+namespace ExcelClone
 {
     public partial class WelcomeDialog : Window
     {
@@ -43,9 +43,9 @@ namespace EFM_BOM_App
             Close();
         }
 
-        private void TplBOM_Click(object sender, MouseButtonEventArgs e)
+        private void TplInventory_Click(object sender, MouseButtonEventArgs e)
         {
-            SelectedTemplate = "BOM";
+            SelectedTemplate = "Inventory";
             DialogResult = true;
             Close();
         }

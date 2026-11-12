@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Windows;
 using Syncfusion.XlsIO;
 
-namespace EFM_BOM_App
+namespace ExcelClone
 {
     public partial class PivotDialog : Window
     {

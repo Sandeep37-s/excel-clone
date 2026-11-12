@@ -2,9 +2,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
-using EFM_BOM_App.Services;
+using ExcelClone.Services;
 
-namespace EFM_BOM_App
+namespace ExcelClone
 {
     public partial class SettingsDialog : Window
     {

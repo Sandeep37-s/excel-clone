@@ -1,4 +1,4 @@
-<Window x:Class="EFM_BOM_App.AnalysisToolpakDialog"
+<Window x:Class="ExcelClone.AnalysisToolpakDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Data Analysis Toolpak"

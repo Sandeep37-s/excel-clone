@@ -77,7 +77,7 @@ ExcelClone is engineered from the ground up as a desktop-native Windows alternat
 - **Data Transformation Studio:** Integrated dialog to preview, filter rows, eliminate duplicate records, split/merge columns, and mutate data types.
 - **Delimited File Import:** Import CSV and TXT files with auto-detected separators, quotes, and headers.
 - **Sorting & Filtering:** Sort ascending/descending by column and apply active autofilters.
-- **Templates:** Built-in starter templates for Corporate Financial Models, Manufacturing BOMs, and Project Milestone Schedules.
+- **Templates:** Built-in starter templates for Corporate Financial Models, Inventory Catalogs, and Project Milestone Schedules.
 
 ### 📈 Charting & Visualization
 - **Chart Types:** Clustered Column, Bar, Line, Pie, Scatter, and Area charts.
@@ -153,7 +153,7 @@ To register desktop shortcuts and `.xlsx` / `.xlsm` / `.csv` file associations:
 
 4. Run the application:
    ```bash
-   dotnet run --project EFM_BOM_App/EFM_BOM_App.csproj -c Release
+   dotnet run --project ExcelClone/ExcelClone.csproj -c Release
    ```
 
 ---
@@ -201,7 +201,7 @@ dotnet test ExcelClone.slnx -c Release
 - [x] Data transformation module (deduplication, column splitting/merging).
 - [x] Removal of all mandatory authentication, login screens, and cloud servers.
 - [x] Consolidated portable distribution archive and clean installer scripts.
-- [ ] Rename internal project directory from `EFM_BOM_App` to `src/ExcelClone`.
+- [x] Decoupled project directory and namespaces to clean `ExcelClone`.
 - [ ] Extended Dynamic Array formula spilling support (`FILTER`, `UNIQUE`, `SORT`, `SEQUENCE`).
 - [ ] Slicers and timeline controls for PivotTables.
 - [ ] Dark theme refinement and accessibility enhancements.
@@ -265,3 +265,4 @@ If you discover a potential vulnerability, please report it privately according 
   <br>
   <sub>ExcelClone — Free. Open source. Desktop first.</sub>
 </p>
+

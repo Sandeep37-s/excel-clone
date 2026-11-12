@@ -5,7 +5,7 @@ using MathNet.Numerics.Statistics;
 using MathNet.Numerics.LinearRegression;
 using Syncfusion.XlsIO;
 
-namespace EFM_BOM_App.Services
+namespace ExcelClone.Services
 {
     public class DescriptiveStatisticsResult
     {

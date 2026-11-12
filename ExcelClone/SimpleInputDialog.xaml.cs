@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace EFM_BOM_App
+namespace ExcelClone
 {
     public partial class SimpleInputDialog : Window
     {

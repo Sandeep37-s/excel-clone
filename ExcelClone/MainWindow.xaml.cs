@@ -9,9 +9,9 @@ using Syncfusion.UI.Xaml.Spreadsheet;
 using Syncfusion.UI.Xaml.Spreadsheet.GraphicCells;
 using Syncfusion.UI.Xaml.SpreadsheetHelper;
 using Syncfusion.XlsIO;
-using EFM_BOM_App.Services;
+using ExcelClone.Services;
 
-namespace EFM_BOM_App
+namespace ExcelClone
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -860,30 +860,31 @@ namespace EFM_BOM_App
                     UpdateTitle("Financial_Projection_Model");
                     StatusText.Text = "Applied Corporate Financial Model template.";
                 }
-                else if (templateName == "BOM")
+                else if (templateName == "Inventory")
                 {
-                    sheet.Name = "Manufacturing_BOM";
-                    sheet.Range["A1"].Text = "Part Number";
-                    sheet.Range["B1"].Text = "Description";
-                    sheet.Range["C1"].Text = "Revision";
-                    sheet.Range["D1"].Text = "Quantity";
-                    sheet.Range["E1"].Text = "Unit Cost ($)";
-                    sheet.Range["F1"].Text = "Total Cost ($)";
+                    sheet.Name = "Product_Inventory";
+                    sheet.Range["A1"].Text = "SKU";
+                    sheet.Range["B1"].Text = "Product Name";
+                    sheet.Range["C1"].Text = "Category";
+                    sheet.Range["D1"].Text = "Stock Qty";
+                    sheet.Range["E1"].Text = "Unit Price ($)";
+                    sheet.Range["F1"].Text = "Total Value ($)";
                     sheet.Range["G1"].Text = "Supplier";
                     sheet.Range["A1:G1"].CellStyle.Font.Bold = true;
 
-                    string[] parts = { "PART-101", "PART-102", "PART-201", "PART-202", "PART-301" };
-                    string[] descs = { "Base Enclosure CNC Aluminum", "Main PCB Controller v2", "Display Screen 1080p OLED", "Lithium Polymer Battery 5000mAh", "M3 Hex Fastener Kit" };
-                    int[] qtys = { 1, 1, 1, 1, 8 };
-                    double[] costs = { 45.00, 32.50, 68.00, 24.00, 0.45 };
-                    string[] supps = { "Apex Machining", "Shenzhen SMT", "DisplayTech", "PowerCell", "FastenerDirect" };
+                    string[] skus = { "SKU-101", "SKU-102", "SKU-201", "SKU-202", "SKU-301" };
+                    string[] descs = { "Wireless Optical Mouse", "Mechanical Keyboard RGB", "27-inch 4K Monitor", "USB-C Fast Charging Hub", "Noise Cancelling Headset" };
+                    string[] cats = { "Peripherals", "Peripherals", "Displays", "Accessories", "Audio" };
+                    int[] qtys = { 45, 28, 14, 60, 22 };
+                    double[] costs = { 29.99, 89.50, 329.00, 39.95, 119.00 };
+                    string[] supps = { "TechDistro Corp", "KeyWorks Ltd", "VisionPanel Inc", "PowerLink Supply", "SoundWave Audio" };
 
-                    for (int i = 0; i < parts.Length; i++)
+                    for (int i = 0; i < skus.Length; i++)
                     {
                         int r = i + 2;
-                        sheet.Range[r, 1].Text = parts[i];
+                        sheet.Range[r, 1].Text = skus[i];
                         sheet.Range[r, 2].Text = descs[i];
-                        sheet.Range[r, 3].Text = "Rev A";
+                        sheet.Range[r, 3].Text = cats[i];
                         sheet.Range[r, 4].Number = qtys[i];
                         sheet.Range[r, 5].Number = costs[i];
                         sheet.Range[r, 5].NumberFormat = "$#,##0.00";
@@ -891,7 +892,7 @@ namespace EFM_BOM_App
                         sheet.Range[r, 6].NumberFormat = "$#,##0.00";
                         sheet.Range[r, 7].Text = supps[i];
                     }
-                    sheet.Range["E8"].Text = "Total Assembly Cost:";
+                    sheet.Range["E8"].Text = "Total Inventory Value:";
                     sheet.Range["E8"].CellStyle.Font.Bold = true;
                     sheet.Range["F8"].Formula = "=SUM(F2:F6)";
                     sheet.Range["F8"].NumberFormat = "$#,##0.00";
@@ -899,8 +900,8 @@ namespace EFM_BOM_App
 
                     sheet.EnableSheetCalculations();
                     sheet.UsedRange.AutofitColumns();
-                    UpdateTitle("Manufacturing_BOM_Template");
-                    StatusText.Text = "Applied Manufacturing BOM template.";
+                    UpdateTitle("Product_Inventory_Catalog");
+                    StatusText.Text = "Applied Product Inventory Catalog template.";
                 }
                 else if (templateName == "Project")
                 {

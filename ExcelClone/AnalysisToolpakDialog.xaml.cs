@@ -4,9 +4,9 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using Syncfusion.XlsIO;
-using EFM_BOM_App.Services;
+using ExcelClone.Services;
 
-namespace EFM_BOM_App
+namespace ExcelClone
 {
     public partial class AnalysisToolpakDialog : Window
     {

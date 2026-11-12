@@ -4,7 +4,7 @@ using System.Windows;
 using Syncfusion.Licensing;
 using Syncfusion.SfSkinManager;
 
-namespace EFM_BOM_App
+namespace ExcelClone
 {
     /// <summary>
     /// Interaction logic for App.xaml

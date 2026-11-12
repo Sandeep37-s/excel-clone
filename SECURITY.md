@@ -26,3 +26,4 @@ If you discover a security vulnerability within ExcelClone, please follow these 
 - **Standalone Execution:** ExcelClone operates entirely on your local machine without mandatory network communication or accounts.
 - **VBA Macro Isolation:** ExcelClone preserves `.xlsm` macro storage for roundtrip file compatibility, but does not execute untrusted VBA macro scripts automatically without OS-level sandboxing.
 - **Safe Parsing:** OpenXML (.xlsx) files are parsed using verified document format boundaries.
+

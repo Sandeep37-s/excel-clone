@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\EFM_BOM_App\EFM_BOM_App.csproj" />
+    <ProjectReference Include="..\..\ExcelClone\ExcelClone.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-<Window x:Class="EFM_BOM_App.ScriptingDialog"
+<Window x:Class="ExcelClone.ScriptingDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ExcelClone — Automation &amp; Modern Scripting Studio"

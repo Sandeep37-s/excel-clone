@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace EFM_BOM_App.Services
+namespace ExcelClone.Services
 {
     public static class LoggingService
     {

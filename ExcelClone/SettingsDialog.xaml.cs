@@ -2,120 +2,111 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using ExcelClone.Services;
 
 namespace ExcelClone
 {
     public partial class SettingsDialog : Window
     {
-        public string SelectedTheme { get; private set; } = "Office2019Colorful";
-        public int AutoSaveMinutes { get; private set; } = 5;
-        public bool IsAutoCalc { get; private set; } = true;
+        private UserSettings _settings;
 
-        public SettingsDialog(string currentTheme, int autoSaveMins, bool isAutoCalc)
+        public SettingsDialog()
         {
             InitializeComponent();
-            SelectedTheme = currentTheme;
-            AutoSaveMinutes = autoSaveMins;
-            IsAutoCalc = isAutoCalc;
+            _settings = SettingsService.Load();
+            LoadCurrentValues();
+        }
 
-            CmbTheme.SelectedIndex = currentTheme.Contains("DarkGray") ? 0 : 1;
+        public SettingsDialog(string theme, int autoSaveMinutes, bool isAutoCalc) : this()
+        {
+        }
 
-            if (autoSaveMins == 1) CmbAutoSave.SelectedIndex = 0;
-            else if (autoSaveMins == 5) CmbAutoSave.SelectedIndex = 1;
-            else if (autoSaveMins == 10) CmbAutoSave.SelectedIndex = 2;
-            else CmbAutoSave.SelectedIndex = 3;
+        private void LoadCurrentValues()
+        {
+            // Theme mapping
+            CmbTheme.SelectedIndex = _settings.Theme.Contains("DarkGray") ? 0 : 1;
 
-            CmbCalcMode.SelectedIndex = isAutoCalc ? 0 : 1;
-
-            try
+            // AutoSave mapping
+            CmbAutoSave.SelectedIndex = _settings.AutoSaveMinutes switch
             {
-                string localKeyFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone", "syncfusion_license.txt");
-                string baseKeyFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "syncfusion_license.txt");
-                if (File.Exists(baseKeyFile))
-                {
-                    TxtLicenseKey.Text = File.ReadAllText(baseKeyFile).Trim();
-                }
-                else if (File.Exists(localKeyFile))
-                {
-                    TxtLicenseKey.Text = File.ReadAllText(localKeyFile).Trim();
-                }
-            }
-            catch { }
+                1 => 0,
+                5 => 1,
+                10 => 2,
+                _ => 3
+            };
+
+            // Calculation mode
+            CmbCalcMode.SelectedIndex = _settings.IsAutoCalc ? 0 : 1;
+        }
+
+        private void BtnSave_Click(object sender, RoutedEventArgs e)
+        {
+            // Save theme
+            _settings.Theme = CmbTheme.SelectedIndex == 0 ? "Office2019DarkGray" : "Office2019Colorful";
+
+            // Save autosave
+            _settings.AutoSaveMinutes = CmbAutoSave.SelectedIndex switch
+            {
+                0 => 1,
+                1 => 5,
+                2 => 10,
+                _ => 0
+            };
+
+            // Save calculation mode
+            _settings.IsAutoCalc = CmbCalcMode.SelectedIndex == 0;
+
+            SettingsService.Save(_settings);
+
+            DialogResult = true;
+            Close();
         }
 
         private void BtnOpenLogDir_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                string logDir = Path.GetDirectoryName(LoggingService.GetLogFilePath()) ?? "";
-                if (Directory.Exists(logDir))
+                string logDir = LoggingService.LogDirectory;
+                if (!Directory.Exists(logDir))
                 {
-                    Process.Start(new ProcessStartInfo("explorer.exe", logDir) { UseShellExecute = true });
+                    Directory.CreateDirectory(logDir);
                 }
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = logDir,
+                    UseShellExecute = true
+                });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to open directory: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Could not open log directory: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void BtnViewLogs_Click(object sender, RoutedEventArgs e)
         {
-            string logs = LoggingService.ReadLogContents();
-            var win = new Window
-            {
-                Title = "ExcelClone Event & Error Logs",
-                Width = 700,
-                Height = 450,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                Content = new System.Windows.Controls.TextBox
-                {
-                    Text = logs,
-                    IsReadOnly = true,
-                    FontFamily = new System.Windows.Media.FontFamily("Consolas"),
-                    FontSize = 11,
-                    VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
-                    Padding = new Thickness(10)
-                }
-            };
-            win.ShowDialog();
-        }
-
-        private void BtnSave_Click(object sender, RoutedEventArgs e)
-        {
-            SelectedTheme = CmbTheme.SelectedIndex == 0 ? "Office2019DarkGray" : "Office2019Colorful";
-
-            switch (CmbAutoSave.SelectedIndex)
-            {
-                case 0: AutoSaveMinutes = 1; break;
-                case 1: AutoSaveMinutes = 5; break;
-                case 2: AutoSaveMinutes = 10; break;
-                case 3: AutoSaveMinutes = 0; break; // Disabled
-            }
-
-            IsAutoCalc = (CmbCalcMode.SelectedIndex == 0);
-
             try
             {
-                string key = TxtLicenseKey.Text.Trim();
-                if (!string.IsNullOrWhiteSpace(key))
+                string logDir = LoggingService.LogDirectory;
+                string todayLog = Path.Combine(logDir, $"ExcelClone_{DateTime.Now:yyyyMMdd}.log");
+                if (File.Exists(todayLog))
                 {
-                    string localDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone");
-                    Directory.CreateDirectory(localDir);
-                    File.WriteAllText(Path.Combine(localDir, "syncfusion_license.txt"), key);
-                    File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "syncfusion_license.txt"), key);
-                    Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(key);
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = todayLog,
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    MessageBox.Show("No log file found for today.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
-            catch { }
-
-            LoggingService.LogInfo($"Settings updated: Theme={SelectedTheme}, AutoSave={AutoSaveMinutes}m, AutoCalc={IsAutoCalc}");
-            DialogResult = true;
-            Close();
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not open log file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }
-

@@ -4,7 +4,7 @@
 
 **Your spreadsheets. Your desktop. Your freedom.**
 
-ExcelClone is a standalone Windows desktop spreadsheet application built with C#, .NET 10, WPF, and Syncfusion SfSpreadsheet. It delivers a familiar, responsive spreadsheet experience with ribbon controls, robust formula calculations, charting, data manipulation tools, and OpenXML workbook interoperability — completely free, locally executed, and without mandatory accounts or subscriptions.
+ExcelClone is a standalone Windows desktop spreadsheet application built with C#, .NET 10, WPF, ReoGrid V3 Community Edition, and ClosedXML. It delivers a familiar, responsive spreadsheet experience with ribbon controls, robust formula calculations, charting, data manipulation tools, and OpenXML workbook interoperability — completely free, locally executed, and without mandatory accounts, activation, or subscriptions.
 
 <p align="center">
   <a href="#-features">Features</a> •
@@ -29,6 +29,22 @@ ExcelClone is a standalone Windows desktop spreadsheet application built with C#
   <img src="https://img.shields.io/badge/UI-WPF%20%2F%20XAML-107C41?style=for-the-badge" alt="WPF">
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License">
 </p>
+
+---
+
+## 📥 Quick Download (Ready-to-Run Application)
+
+You can download and run ExcelClone directly without needing to install .NET SDK or compile from source code:
+
+👉 **[Click Here to Download ExcelClone v2.0 Portable (.zip)](Download/ExcelClone_v2.0_Portable.zip)** *(4.55 MB)*
+
+### How to use:
+1. Download **[`ExcelClone_v2.0_Portable.zip`](Download/ExcelClone_v2.0_Portable.zip)** from the [`Download/`](Download/) folder.
+2. Right-click the `.zip` file and select **Extract All...**.
+3. Double-click **`ExcelClone.exe`** to run!
+4. *100% Free, Offline, No Subscription, No Activation Keys.*
+
+> **Platform Note:** ExcelClone is a native 64-bit Windows desktop application (WPF / .NET 10) for Windows 10 and 11. It is not an Android APK.
 
 ---
 
@@ -208,11 +224,17 @@ dotnet test ExcelClone.slnx -c Release
 
 ---
 
-## ⚠️ Compatibility & Disclaimers
+## ⚠️ Known Limitations & Compatibility Disclaimers
 
 > [!IMPORTANT]
-> - **Excel Compatibility:** ExcelClone is an independent spreadsheet application. While it strives for high OpenXML (`.xlsx`) compatibility, it is **not** a 1:1 clone of Microsoft Excel. Complex Excel 365 dynamic spill formulas, Power Query M-code, or proprietary add-ins may behave differently or require simplification.
-> - **Macro Execution:** For security reasons, arbitrary VBA macro script execution is not enabled. `.xlsm` workbooks can be opened, edited, and saved with complete preservation of the macro binary, but scripts will not execute locally.
+> - **Excel Compatibility Scope:** ExcelClone is an independent spreadsheet application built with modern .NET and Syncfusion XlsIO. While it delivers high OpenXML (`.xlsx`) fidelity, it is **not** an exhaustive 1:1 clone of Microsoft 365:
+>   - **Dynamic Spill Arrays:** Formulas such as `=FILTER()`, `=UNIQUE()`, and `=SORT()` that spill dynamic ranges across multiple adjacent cells are not natively calculated as spill matrices; standard functions (`SUM`, `AVERAGE`, `VLOOKUP`, `INDEX/MATCH`, `IF`, etc.) are fully supported.
+>   - **Power Query & Data Model:** Excel Data Models, Power Pivot DAX models, and Power Query (M-language) ETL connections are not executed or refreshed locally.
+>   - **Macro Execution:** For user security, VBA macro script execution is deliberately disabled. Workbooks containing macros (`.xlsm`) can be opened, edited, and saved with complete preservation of their underlying VBA binary streams, but macros will not execute.
+> - **Syncfusion Licensing & Evaluation Warning:** 
+>   - ExcelClone utilizes Syncfusion Essential Studio for WPF.
+>   - When running without a registered license key, Syncfusion operates in Evaluation mode, displaying a startup notice and inserting an `"Evaluation Warning"` sheet into saved workbooks.
+>   - Users or organizations can permanently remove the evaluation sheet by obtaining a free [Syncfusion Community License](https://www.syncfusion.com/products/communitylicense) and saving their key in **Settings > License Key** or the `SYNCFUSION_LICENSE_KEY` environment variable.
 > - **Trademark Notice:** Microsoft Excel is a registered trademark of Microsoft Corporation. ExcelClone is an independent open-source project and is not affiliated with, endorsed by, or sponsored by Microsoft Corporation.
 
 ---
@@ -254,9 +276,13 @@ If you discover a potential vulnerability, please report it privately according 
 
 ## 📄 Licensing
 
-- **ExcelClone Source Code:** Released under the [MIT License](LICENSE.md).
-- **Syncfusion Components:** Uses Syncfusion SfSpreadsheet and XlsIO for WPF, which are proprietary commercial components governed by the [Syncfusion EULA](https://www.syncfusion.com/content/downloads/eula/eula.pdf). Developers building from source or distributing commercial products must obtain an appropriate [Syncfusion License](https://www.syncfusion.com/sales/products) or utilize the free [Syncfusion Community License](https://www.syncfusion.com/products/communitylicense) if eligible.
-- **MathNet.Numerics:** Licensed under the [MIT License](https://numerics.mathdotnet.com/License.html).
+- **ExcelClone Application Code:** Released under the [MIT License](LICENSE).
+- **Core Spreadsheet Components:**
+  - **ReoGrid V3 Community Edition:** Licensed under the [MIT License](https://github.com/unvell/ReoGrid).
+  - **ClosedXML:** Licensed under the [MIT License](https://github.com/ClosedXML/ClosedXML).
+  - **DocumentFormat.OpenXml:** Licensed under the [MIT License](https://github.com/dotnet/Open-XML-SDK).
+  - **MathNet.Numerics:** Licensed under the [MIT License](https://numerics.mathdotnet.com/License.html).
+- For complete third-party dependency details, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---
 

@@ -1,15 +1,15 @@
 using System;
 using System.Windows;
-using Syncfusion.XlsIO;
+using unvell.ReoGrid;
 using ExcelClone.Services;
 
 namespace ExcelClone
 {
     public partial class GoalSeekDialog : Window
     {
-        private readonly IWorksheet _sheet;
+        private readonly Worksheet? _sheet;
 
-        public GoalSeekDialog(IWorksheet sheet, string defaultTargetCell = "A1", string defaultChangingCell = "A2")
+        public GoalSeekDialog(Worksheet? sheet = null, string defaultTargetCell = "A1", string defaultChangingCell = "A2")
         {
             InitializeComponent();
             _sheet = sheet;
@@ -32,6 +32,13 @@ namespace ExcelClone
             if (!double.TryParse(TxtTargetValue.Text.Trim(), out double targetVal))
             {
                 MessageBox.Show("Target value must be a valid number.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (_sheet == null)
+            {
+                MessageBox.Show("No active worksheet available for Goal Seek.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
+                Close();
                 return;
             }
 
@@ -61,4 +68,3 @@ namespace ExcelClone
         }
     }
 }
-

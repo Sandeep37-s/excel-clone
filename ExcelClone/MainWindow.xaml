@@ -1,79 +1,229 @@
-<syncfusion:RibbonWindow x:Class="ExcelClone.MainWindow"
+<Window x:Class="ExcelClone.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
-        xmlns:skin="clr-namespace:Syncfusion.SfSkinManager;assembly=Syncfusion.SfSkinManager.WPF"
-        skin:SfSkinManager.VisualStyle="Office2019DarkGray"
+        xmlns:rg="clr-namespace:unvell.ReoGrid;assembly=unvell.ReoGrid"
         mc:Ignorable="d"
-        Title="Book1 - Excel"
-        Height="850" Width="1350"
+        Title="Book1 - Excel" Height="760" Width="1200"
         WindowStartupLocation="CenterScreen"
-        AllowDrop="True"
-        Drop="Window_Drop">
+        Background="#2B2B2B">
 
-    <Grid Background="#202020">
+    <Grid Background="#F3F3F3">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/> <!-- Title / Menu Bar -->
+            <RowDefinition Height="Auto"/> <!-- Ribbon Tabs & Controls -->
+            <RowDefinition Height="Auto"/> <!-- Formula Bar -->
+            <RowDefinition Height="*"/>    <!-- Spreadsheet Grid & Drawing Canvas -->
+            <RowDefinition Height="Auto"/> <!-- Status Bar -->
         </Grid.RowDefinitions>
 
-        <!-- SfSpreadsheetRibbon provides full Excel-like ribbon (File/Home/Insert/Draw/PageLayout/Formulas/Data/Review/View/Help) -->
-        <syncfusion:SfSpreadsheetRibbon Grid.Row="0"
-                                        x:Name="spreadsheetRibbon"
-                                        SfSpreadsheet="{Binding ElementName=spreadsheetControl}"
-                                        Loaded="SpreadsheetRibbon_Loaded"/>
+        <!-- Top Header Ribbon -->
+        <Border Grid.Row="0" Background="#107C41" Padding="12,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⚡ ExcelClone" FontWeight="Bold" FontSize="14" Foreground="#FFFFFF" Margin="0,0,16,0"/>
+                    <TextBlock x:Name="HeaderTitle" Text="Book1.xlsx - Excel (Free &amp; Open Source Edition)" Foreground="#E0E0E0" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="⚙️ Settings" Padding="8,2" Margin="2,0" Background="Transparent" Foreground="#FFFFFF" BorderThickness="0" Click="BtnSettings_Click"/>
+                    <Button Content="❓ Shortcuts (F1)" Padding="8,2" Margin="2,0" Background="Transparent" Foreground="#FFFFFF" BorderThickness="0" Click="BtnShortcuts_Click"/>
+                    <Button Content="ℹ️ About" Padding="8,2" Margin="2,0" Background="Transparent" Foreground="#FFFFFF" BorderThickness="0" Click="BtnAbout_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-        <!-- Native SfSpreadsheet Control (Grid, Formula Bar, Sheet Tabs, Context Menus) + Drawing Ink Overlay -->
-        <Grid Grid.Row="1">
-            <syncfusion:SfSpreadsheet x:Name="spreadsheetControl"
-                                      FormulaBarVisibility="Visible"/>
-            <InkCanvas x:Name="drawingCanvas"
-                       Visibility="Collapsed"
-                       Background="Transparent"/>
+        <!-- Ribbon Bar / Tab Control -->
+        <TabControl Grid.Row="1" Background="#FFFFFF" BorderBrush="#E0E0E0" Padding="4">
+            <!-- Home Tab -->
+            <TabItem Header="Home">
+                <WrapPanel Orientation="Horizontal" Margin="4,2">
+                    <!-- File Group -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                        <Button Content="📄 New" Padding="6,4" Margin="2" Click="BtnNew_Click"/>
+                        <Button Content="📂 Open" Padding="6,4" Margin="2" Click="BtnOpen_Click"/>
+                        <Button Content="💾 Save" Padding="6,4" Margin="2" Click="BtnSave_Click"/>
+                        <Button Content="💾 Save As" Padding="6,4" Margin="2" Click="BtnSaveAs_Click"/>
+                        <Button Content="🖨️ Print" Padding="6,4" Margin="2" Click="BtnPrint_Click"/>
+                    </StackPanel>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+
+                    <!-- Clipboard -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                        <Button Content="📋 Paste" Padding="6,4" Margin="2" Click="BtnPaste_Click"/>
+                        <Button Content="✂️ Cut" Padding="6,4" Margin="2" Click="BtnCut_Click"/>
+                        <Button Content="📑 Copy" Padding="6,4" Margin="2" Click="BtnCopy_Click"/>
+                    </StackPanel>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+
+                    <!-- Font & Style -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                        <ComboBox x:Name="CmbFontFamily" Width="90" Margin="2" SelectedIndex="0" SelectionChanged="CmbFontFamily_SelectionChanged">
+                            <ComboBoxItem Content="Calibri"/>
+                            <ComboBoxItem Content="Segoe UI"/>
+                            <ComboBoxItem Content="Arial"/>
+                            <ComboBoxItem Content="Times New Roman"/>
+                            <ComboBoxItem Content="Consolas"/>
+                        </ComboBox>
+                        <ComboBox x:Name="CmbFontSize" Width="55" Margin="2" SelectedIndex="2" SelectionChanged="CmbFontSize_SelectionChanged">
+                            <ComboBoxItem Content="9"/>
+                            <ComboBoxItem Content="10"/>
+                            <ComboBoxItem Content="11"/>
+                            <ComboBoxItem Content="12"/>
+                            <ComboBoxItem Content="14"/>
+                            <ComboBoxItem Content="16"/>
+                            <ComboBoxItem Content="18"/>
+                        </ComboBox>
+                        <Button Content="𝐁 Bold (Ctrl+B)" FontWeight="Bold" Padding="6,4" Margin="2" Click="BtnBold_Click"/>
+                        <Button Content="𝐼 Italic (Ctrl+I)" FontStyle="Italic" Padding="6,4" Margin="2" Click="BtnItalic_Click"/>
+                        <Button Content="U̲ Underline (Ctrl+U)" Padding="6,4" Margin="2" Click="BtnUnderline_Click"/>
+                        <Button Content="🟡 Fill Yellow" Padding="6,4" Margin="2" Click="BtnFillYellow_Click"/>
+                        <Button Content="🔲 All Borders" Padding="6,4" Margin="2" Click="BtnBorders_Click"/>
+                    </StackPanel>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+
+                    <!-- Alignment & Editing -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                        <Button Content="Left" Padding="6,4" Margin="2" Click="BtnAlignLeft_Click"/>
+                        <Button Content="Center" Padding="6,4" Margin="2" Click="BtnAlignCenter_Click"/>
+                        <Button Content="Right" Padding="6,4" Margin="2" Click="BtnAlignRight_Click"/>
+                        <Button Content="🔗 Merge &amp; Center" Padding="6,4" Margin="2" Click="BtnMerge_Click"/>
+                        <Button Content="✂️ Unmerge" Padding="6,4" Margin="2" Click="BtnUnmerge_Click"/>
+                    </StackPanel>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+
+                    <!-- Search & Replace -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                        <Button Content="🔍 Find (Ctrl+F)" Padding="6,4" Margin="2" Click="BtnFind_Click"/>
+                        <Button Content="🔄 Replace (Ctrl+H)" Padding="6,4" Margin="2" Click="BtnReplace_Click"/>
+                    </StackPanel>
+                </WrapPanel>
+            </TabItem>
+
+            <!-- Insert Tab -->
+            <TabItem Header="Insert">
+                <WrapPanel Orientation="Horizontal" Margin="4,2">
+                    <Button Content="➕ Add Worksheet" Padding="8,4" Margin="2" Click="BtnAddSheet_Click"/>
+                    <Button Content="🖼️ Insert Picture" Padding="8,4" Margin="2" Click="BtnInsertPicture_Click"/>
+                    <Button Content="🔷 Insert Shape" Padding="8,4" Margin="2" Click="BtnInsertShape_Click"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+                    <Button Content="📊 Column Chart" ToolTip="Create in-memory interactive Column Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertColumnChart_Click"/>
+                    <Button Content="📊 Bar Chart" ToolTip="Create in-memory interactive Bar Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertBarChart_Click"/>
+                    <Button Content="📈 Line Chart" ToolTip="Create in-memory interactive Line Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertLineChart_Click"/>
+                    <Button Content="🥧 Pie Chart" ToolTip="Create in-memory interactive Pie Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertPieChart_Click"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+                    <Button Content="📑 Create Table" Padding="8,4" Margin="2" Click="BtnCreateTable_Click"/>
+                    <Button Content="📊 Pivot Summary" ToolTip="Create multi-dimensional cross-tabulation summary table with aggregations, totals, and linked chart" Padding="8,4" Margin="2" Click="BtnPivotTable_Click"/>
+                    <Button Content="🔄 Refresh Summary" ToolTip="Recalculate and refresh the active Pivot Summary with latest source data" Padding="8,4" Margin="2" Click="BtnRefreshPivot_Click"/>
+                </WrapPanel>
+            </TabItem>
+
+            <!-- Draw Tab (InkCanvas Overlay) -->
+            <TabItem Header="Draw">
+                <WrapPanel Orientation="Horizontal" Margin="4,2">
+                    <Button Content="👆 Select (Grid)" Padding="8,4" Margin="2" Click="BtnDrawSelect_Click"/>
+                    <Button Content="🖊️ Black Pen" Padding="8,4" Margin="2" Click="BtnBlackPen_Click"/>
+                    <Button Content="🔴 Red Pen" Padding="8,4" Margin="2" Click="BtnRedPen_Click"/>
+                    <Button Content="🖍️ Highlighter" Padding="8,4" Margin="2" Click="BtnHighlighter_Click"/>
+                    <Button Content="🧹 Clear Drawing" Padding="8,4" Margin="2" Click="BtnClearDrawing_Click"/>
+                </WrapPanel>
+            </TabItem>
+
+            <!-- Formulas Tab -->
+            <TabItem Header="Formulas">
+                <WrapPanel Orientation="Horizontal" Margin="4,2">
+                    <Button Content="∑ AutoSum" Padding="8,4" Margin="2" Click="BtnAutoSum_Click"/>
+                    <Button Content="🏷️ Define Name..." Padding="8,4" Margin="2" Click="BtnDefineName_Click"/>
+                    <Button Content="📋 Name Manager..." Padding="8,4" Margin="2" Click="BtnNameManager_Click"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+                    <Button Content="🔍 Trace Precedents" Padding="8,4" Margin="2" Click="BtnTracePrecedents_Click"/>
+                    <Button Content="🎯 Trace Dependents" Padding="8,4" Margin="2" Click="BtnTraceDependents_Click"/>
+                    <Button Content="🔄 Calculate Now (F9)" Padding="8,4" Margin="2" Click="BtnRecalculate_Click"/>
+                </WrapPanel>
+            </TabItem>
+
+            <!-- Data Tab -->
+            <TabItem Header="Data">
+                <WrapPanel Orientation="Horizontal" Margin="4,2">
+                    <Button Content="⬇️ Sort A to Z" Padding="8,4" Margin="2" Click="BtnSortAsc_Click"/>
+                    <Button Content="⬆️ Sort Z to A" Padding="8,4" Margin="2" Click="BtnSortDesc_Click"/>
+                    <Button Content="🔍 Filter" Padding="8,4" Margin="2" Click="BtnFilter_Click"/>
+                    <Button Content="🗑️ Remove Duplicates" Padding="8,4" Margin="2" Click="BtnRemoveDuplicates_Click"/>
+                    <Button Content="✅ Data Validation..." Padding="8,4" Margin="2" Click="BtnDataValidation_Click"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+                    <Button Content="🎯 Goal Seek..." Padding="8,4" Margin="2" Click="BtnGoalSeek_Click"/>
+                    <Button Content="📈 Analysis Toolpak..." Padding="8,4" Margin="2" Click="BtnAnalysisToolpak_Click"/>
+                    <Button Content="⚙️ Data Studio..." Padding="8,4" Margin="2" Click="BtnDataTransformation_Click"/>
+                    <Button Content="📥 Import CSV" Padding="8,4" Margin="2" Click="BtnImportCsv_Click"/>
+                    <Button Content="📤 Export CSV" Padding="8,4" Margin="2" Click="BtnExportCsv_Click"/>
+                </WrapPanel>
+            </TabItem>
+
+            <!-- Review Tab -->
+            <TabItem Header="Review">
+                <WrapPanel Orientation="Horizontal" Margin="4,2">
+                    <Button Content="💬 New Comment..." Padding="8,4" Margin="2" Click="BtnAddComment_Click"/>
+                    <Button Content="❌ Delete Comment" Padding="8,4" Margin="2" Click="BtnDeleteComment_Click"/>
+                    <Button Content="📋 Show All Comments" Padding="8,4" Margin="2" Click="BtnShowComments_Click"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+                    <Button Content="🔒 Protect Sheet..." Padding="8,4" Margin="2" Click="BtnProtectSheet_Click"/>
+                    <Button Content="🔓 Unprotect Sheet" Padding="8,4" Margin="2" Click="BtnUnprotectSheet_Click"/>
+                    <Button Content="🛡️ Protect Workbook..." Padding="8,4" Margin="2" Click="BtnProtectWorkbook_Click"/>
+                </WrapPanel>
+            </TabItem>
+
+            <!-- View Tab -->
+            <TabItem Header="View">
+                <WrapPanel Orientation="Horizontal" Margin="4,2">
+                    <Button Content="❄️ Freeze Panes" Padding="8,4" Margin="2" Click="BtnFreezePanes_Click"/>
+                    <Button Content="☀️ Unfreeze Panes" Padding="8,4" Margin="2" Click="BtnUnfreezePanes_Click"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+                    <Button Content="🔍 100%" Padding="8,4" Margin="2" Click="BtnZoomReset_Click"/>
+                    <Button Content="➕ Zoom In" Padding="8,4" Margin="2" Click="BtnZoomIn_Click"/>
+                    <Button Content="➖ Zoom Out" Padding="8,4" Margin="2" Click="BtnZoomOut_Click"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
+                    <Button Content="🔄 Toggle Theme" Padding="8,4" Margin="2" Click="BtnToggleTheme_Click"/>
+                </WrapPanel>
+            </TabItem>
+        </TabControl>
+
+        <!-- Formula Bar -->
+        <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="30"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="TxtNameBox" Grid.Column="0" Text="A1" FontWeight="SemiBold" TextAlignment="Center" VerticalAlignment="Center" IsReadOnly="True" Margin="0,0,6,0"/>
+                <TextBlock Grid.Column="1" Text="fx" FontStyle="Italic" FontWeight="Bold" FontSize="14" Foreground="#777777" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <TextBox x:Name="TxtFormulaBar" Grid.Column="2" VerticalAlignment="Center" Padding="6,3" KeyDown="TxtFormulaBar_KeyDown"/>
+            </Grid>
+        </Border>
+
+        <!-- Grid and InkCanvas Layer -->
+        <Grid Grid.Row="3">
+            <rg:ReoGridControl x:Name="gridControl"/>
+            <InkCanvas x:Name="drawingCanvas" Visibility="Collapsed" Background="Transparent"/>
         </Grid>
 
-        <!-- Status Bar in Microsoft Excel Dark Mode -->
-        <StatusBar Grid.Row="2" Background="#202020" BorderBrush="#333333" BorderThickness="0,1,0,0" Height="26">
-            <StatusBarItem>
-                <TextBlock x:Name="StatusText" Text="Ready" FontSize="11" Foreground="#CCCCCC" Margin="8,0,0,0"/>
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Text="Accessibility: Good to go" FontSize="11" Foreground="#888888" Margin="16,0,0,0"/>
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="FileInfoText" Text="Unsaved Workbook" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
-                    <!-- Normal View -->
-                    <Button ToolTip="Normal View" Width="22" Height="20" Background="Transparent" BorderThickness="0" Margin="2,0" Click="BtnViewNormal_Click">
-                        <Border BorderBrush="#888888" BorderThickness="1" Width="12" Height="10" Background="Transparent">
-                            <Grid>
-                                <Line X1="6" Y1="0" X2="6" Y2="10" Stroke="#888888"/>
-                                <Line X1="0" Y1="5" X2="12" Y2="5" Stroke="#888888"/>
-                            </Grid>
-                        </Border>
-                    </Button>
-                    <!-- Page Break Preview -->
-                    <Button ToolTip="Page Break Preview" Width="22" Height="20" Background="Transparent" BorderThickness="0" Margin="2,0" Click="BtnViewPageBreak_Click">
-                        <Border BorderBrush="#888888" BorderThickness="1" Width="12" Height="10" Background="Transparent">
-                            <Line X1="0" Y1="5" X2="12" Y2="5" Stroke="#888888" StrokeDashArray="2 1"/>
-                        </Border>
-                    </Button>
-                    <!-- Page Layout -->
-                    <Button ToolTip="Page Layout" Width="22" Height="20" Background="Transparent" BorderThickness="0" Margin="2,0" Click="BtnViewPageLayout_Click">
-                        <Border BorderBrush="#888888" BorderThickness="1" Width="10" Height="12" Background="Transparent"/>
-                    </Button>
-                    <!-- Zoom Slider -->
-                    <TextBlock Text="-" Foreground="#888888" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,4,0" Cursor="Hand" MouseDown="BtnZoomOut_Click"/>
-                    <Slider x:Name="ZoomSlider" Width="85" Minimum="50" Maximum="200" Value="100" VerticalAlignment="Center" ValueChanged="ZoomSlider_ValueChanged"/>
-                    <TextBlock Text="+" Foreground="#888888" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0" Cursor="Hand" MouseDown="BtnZoomIn_Click"/>
-                    <TextBlock x:Name="ZoomText" Text="100%" Foreground="#CCCCCC" FontSize="11" Width="36" VerticalAlignment="Center"/>
-                </StackPanel>
-            </StatusBarItem>
-        </StatusBar>
+        <!-- Status Bar -->
+        <Border Grid.Row="4" Background="#107C41" Padding="12,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText" Foreground="#FFFFFF" Text="Ready (ExcelClone v2.0 Open Source MIT Edition)."/>
+                <TextBlock x:Name="StatusCell" Grid.Column="1" Foreground="#E0E0E0" Text="Cell: A1" Margin="0,0,16,0"/>
+                <TextBlock Grid.Column="2" Foreground="#D0D0D0" Text="100% MIT Permissive | Offline"/>
+            </Grid>
+        </Border>
     </Grid>
-</syncfusion:RibbonWindow>
+</Window>

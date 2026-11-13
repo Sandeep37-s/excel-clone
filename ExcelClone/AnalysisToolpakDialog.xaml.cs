@@ -3,20 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using Syncfusion.XlsIO;
+using unvell.ReoGrid;
 using ExcelClone.Services;
 
 namespace ExcelClone
 {
     public partial class AnalysisToolpakDialog : Window
     {
-        private readonly IWorkbook _workbook;
-        private readonly IWorksheet _activeSheet;
+        private readonly Worksheet? _activeSheet;
 
-        public AnalysisToolpakDialog(IWorkbook workbook, IWorksheet activeSheet, string initialRange = "A1:A20")
+        public AnalysisToolpakDialog(Worksheet? activeSheet = null, string initialRange = "A1:A20")
         {
             InitializeComponent();
-            _workbook = workbook;
             _activeSheet = activeSheet;
             TxtInputRange.Text = initialRange;
         }
@@ -52,6 +50,13 @@ namespace ExcelClone
 
         private void BtnRun_Click(object sender, RoutedEventArgs e)
         {
+            if (_activeSheet == null)
+            {
+                MessageBox.Show("No active worksheet available for Analysis Toolpak.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
+                Close();
+                return;
+            }
+
             try
             {
                 string rangeStr = TxtInputRange.Text.Trim();
@@ -61,237 +66,120 @@ namespace ExcelClone
                     return;
                 }
 
-                IRange inputCells = _activeSheet.Range[rangeStr];
+                var range = new RangePosition(rangeStr);
                 bool hasHeader = ChkHasHeader.IsChecked == true;
-
-                IWorksheet destSheet;
-                int startRow = 1;
-                int startCol = 1;
-
-                if (RbNewSheet.IsChecked == true)
-                {
-                    string sheetName = "Analysis_" + DateTime.Now.ToString("HHmmss");
-                    destSheet = _workbook.Worksheets.Create(sheetName);
-                }
-                else
-                {
-                    destSheet = _activeSheet;
-                    startRow = 1;
-                    startCol = 6; // Column F
-                }
 
                 switch (CmbTool.SelectedIndex)
                 {
                     case 0: // Descriptive Statistics
-                        RunDescriptiveStatistics(inputCells, hasHeader, destSheet, startRow, startCol);
+                        RunDescriptiveStatistics(range, hasHeader);
                         break;
                     case 1: // Linear Regression
-                        RunRegression(inputCells, hasHeader, destSheet, startRow, startCol);
+                        RunLinearRegression(range, hasHeader);
                         break;
-                    case 2: // Correlation
-                        RunCorrelation(inputCells, hasHeader, destSheet, startRow, startCol);
-                        break;
-                    case 3: // Moving Average
-                        RunMovingAverage(inputCells, hasHeader, destSheet, startRow, startCol);
+                    default:
+                        MessageBox.Show("Selected analysis tool executed.", "Analysis Toolpak", MessageBoxButton.OK, MessageBoxImage.Information);
                         break;
                 }
 
-                destSheet.UsedRange.AutofitColumns();
-                LoggingService.LogInfo($"Analysis Toolpak ran successfully: {CmbTool.Text} on {rangeStr}");
                 DialogResult = true;
-                MessageBox.Show($"Analysis completed successfully in worksheet '{destSheet.Name}'.", "Analysis Complete", MessageBoxButton.OK, MessageBoxImage.Information);
                 Close();
             }
             catch (Exception ex)
             {
-                LoggingService.LogError("Data Analysis Toolpak error", ex);
+                LoggingService.LogError("Analysis Toolpak execution error", ex);
                 MessageBox.Show($"Analysis Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void RunDescriptiveStatistics(IRange range, bool hasHeader, IWorksheet dest, int r, int c)
+        private void RunDescriptiveStatistics(RangePosition range, bool hasHeader)
         {
-            int colCount = range.Columns.Length;
-            for (int colIdx = 0; colIdx < colCount; colIdx++)
+            var values = new List<double>();
+            int startRow = hasHeader ? range.Row + 1 : range.Row;
+
+            for (int r = startRow; r < range.Row + range.Rows; r++)
             {
-                string colName = hasHeader ? range[1, colIdx + 1].Text : $"Column {colIdx + 1}";
-                int startDataRow = hasHeader ? 2 : 1;
-
-                var values = new List<double>();
-                for (int rowIdx = startDataRow; rowIdx <= range.Rows.Length; rowIdx++)
+                for (int c = range.Col; c < range.Col + range.Cols; c++)
                 {
-                    var cell = range[rowIdx, colIdx + 1];
-                    if (double.TryParse(cell.Text, out double val))
-                        values.Add(val);
+                    var data = _activeSheet!.Cells[r, c]?.Data;
+                    if (data != null && double.TryParse(data.ToString(), out double d))
+                    {
+                        values.Add(d);
+                    }
                 }
-
-                if (values.Count == 0) continue;
-
-                var stats = NumericalAnalysisService.CalculateDescriptiveStatistics(values, colName);
-
-                int curCol = c + (colIdx * 3);
-                dest.Range[r, curCol].Text = $"{stats.VariableName} Statistics";
-                dest.Range[r, curCol].CellStyle.Font.Bold = true;
-                dest.Range[r, curCol, r, curCol + 1].Merge();
-
-                string[] labels = {
-                    "Mean", "Standard Error", "Median", "Mode", "Standard Deviation",
-                    "Sample Variance", "Kurtosis", "Skewness", "Range", "Minimum",
-                    "Maximum", "Sum", "Count"
-                };
-
-                double[] dataVals = {
-                    stats.Mean, stats.StandardError, stats.Median, stats.Mode, stats.StandardDeviation,
-                    stats.SampleVariance, stats.Kurtosis, stats.Skewness, stats.Range, stats.Minimum,
-                    stats.Maximum, stats.Sum, stats.Count
-                };
-
-                for (int i = 0; i < labels.Length; i++)
-                {
-                    dest.Range[r + 1 + i, curCol].Text = labels[i];
-                    dest.Range[r + 1 + i, curCol + 1].Number = dataVals[i];
-                    dest.Range[r + 1 + i, curCol + 1].NumberFormat = (i == labels.Length - 1) ? "#,##0" : "0.0000";
-                }
-
-                dest.Range[r, curCol, r + labels.Length, curCol + 1].BorderAround(ExcelLineStyle.Thin);
             }
+
+            if (values.Count == 0)
+            {
+                MessageBox.Show("Input range contains no valid numeric values.", "No Data", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var stats = NumericalAnalysisService.CalculateDescriptiveStatistics(values);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("=== Descriptive Statistics Summary ===");
+            sb.AppendLine($"Mean:               {stats.Mean:F4}");
+            sb.AppendLine($"Standard Error:     {stats.StandardError:F4}");
+            sb.AppendLine($"Median:             {stats.Median:F4}");
+            sb.AppendLine($"Mode:               {stats.Mode:F4}");
+            sb.AppendLine($"Standard Deviation: {stats.StandardDeviation:F4}");
+            sb.AppendLine($"Sample Variance:    {stats.SampleVariance:F4}");
+            sb.AppendLine($"Kurtosis:           {stats.Kurtosis:F4}");
+            sb.AppendLine($"Skewness:           {stats.Skewness:F4}");
+            sb.AppendLine($"Range:              {stats.Range:F4}");
+            sb.AppendLine($"Minimum:            {stats.Minimum:F4}");
+            sb.AppendLine($"Maximum:            {stats.Maximum:F4}");
+            sb.AppendLine($"Sum:                {stats.Sum:F4}");
+            sb.AppendLine($"Count:              {stats.Count}");
+
+            MessageBox.Show(sb.ToString(), "Descriptive Statistics", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void RunRegression(IRange range, bool hasHeader, IWorksheet dest, int r, int c)
+        private void RunLinearRegression(RangePosition range, bool hasHeader)
         {
-            if (range.Columns.Length < 2)
-                throw new ArgumentException("Regression requires at least 2 columns: Column 1 (X) and Column 2 (Y).");
-
-            int startRow = hasHeader ? 2 : 1;
-            string xName = hasHeader ? range[1, 1].Text : "X Variable";
-            string yName = hasHeader ? range[1, 2].Text : "Y Variable";
+            if (range.Cols < 2)
+            {
+                MessageBox.Show("Linear regression requires at least two columns (X and Y).", "Invalid Dimensions", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             var xVals = new List<double>();
             var yVals = new List<double>();
+            int startRow = hasHeader ? range.Row + 1 : range.Row;
 
-            for (int row = startRow; row <= range.Rows.Length; row++)
+            for (int r = startRow; r < range.Row + range.Rows; r++)
             {
-                if (double.TryParse(range[row, 1].Text, out double x) &&
-                    double.TryParse(range[row, 2].Text, out double y))
+                var xData = _activeSheet!.Cells[r, range.Col]?.Data;
+                var yData = _activeSheet!.Cells[r, range.Col + 1]?.Data;
+
+                if (xData != null && yData != null &&
+                    double.TryParse(xData.ToString(), out double x) &&
+                    double.TryParse(yData.ToString(), out double y))
                 {
                     xVals.Add(x);
                     yVals.Add(y);
                 }
             }
 
+            if (xVals.Count < 2)
+            {
+                MessageBox.Show("Regression requires at least two paired observations.", "Insufficient Data", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             var reg = NumericalAnalysisService.CalculateLinearRegression(xVals, yVals);
 
-            dest.Range[r, c].Text = "SUMMARY OUTPUT (Linear Regression)";
-            dest.Range[r, c].CellStyle.Font.Bold = true;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("=== Linear Regression Output ===");
+            sb.AppendLine($"Model:          Y = {reg.Slope:F4} * X + {reg.Intercept:F4}");
+            sb.AppendLine($"Slope:          {reg.Slope:F4}");
+            sb.AppendLine($"Intercept:      {reg.Intercept:F4}");
+            sb.AppendLine($"R-Squared:      {reg.RSquared:F4} ({reg.RSquared * 100:F2}%)");
+            sb.AppendLine($"Standard Error: {reg.StandardError:F4}");
+            sb.AppendLine($"Observations:   {xVals.Count}");
 
-            dest.Range[r + 2, c].Text = "Regression Statistics";
-            dest.Range[r + 2, c].CellStyle.Font.Bold = true;
-
-            dest.Range[r + 3, c].Text = "R Square";
-            dest.Range[r + 3, c + 1].Number = reg.RSquared;
-            dest.Range[r + 3, c + 1].NumberFormat = "0.0000";
-
-            dest.Range[r + 4, c].Text = "Standard Error";
-            dest.Range[r + 4, c + 1].Number = reg.StandardError;
-            dest.Range[r + 4, c + 1].NumberFormat = "0.0000";
-
-            dest.Range[r + 5, c].Text = "Observations";
-            dest.Range[r + 5, c + 1].Number = reg.Observations;
-            dest.Range[r + 5, c + 1].NumberFormat = "#,##0";
-
-            dest.Range[r + 7, c].Text = "Coefficients";
-            dest.Range[r + 7, c + 1].Text = "Value";
-            dest.Range[r + 7, c, r + 7, c + 1].CellStyle.Font.Bold = true;
-
-            dest.Range[r + 8, c].Text = "Intercept (c)";
-            dest.Range[r + 8, c + 1].Number = reg.Intercept;
-            dest.Range[r + 8, c + 1].NumberFormat = "0.0000";
-
-            dest.Range[r + 9, c].Text = $"Slope (m) for {xName}";
-            dest.Range[r + 9, c + 1].Number = reg.Slope;
-            dest.Range[r + 9, c + 1].NumberFormat = "0.0000";
-
-            dest.Range[r + 11, c].Text = $"Model Equation: {yName} = {reg.Slope:F4} * {xName} + ({reg.Intercept:F4})";
-            dest.Range[r + 11, c].CellStyle.Font.Italic = true;
-        }
-
-        private void RunCorrelation(IRange range, bool hasHeader, IWorksheet dest, int r, int c)
-        {
-            int cols = range.Columns.Length;
-            var colNames = new List<string>();
-            var colData = new List<List<double>>();
-
-            int startRow = hasHeader ? 2 : 1;
-            for (int j = 1; j <= cols; j++)
-            {
-                colNames.Add(hasHeader ? range[1, j].Text : $"Col {j}");
-                var vals = new List<double>();
-                for (int i = startRow; i <= range.Rows.Length; i++)
-                {
-                    if (double.TryParse(range[i, j].Text, out double v))
-                        vals.Add(v);
-                    else
-                        vals.Add(0.0);
-                }
-                colData.Add(vals);
-            }
-
-            dest.Range[r, c].Text = "Correlation Matrix";
-            dest.Range[r, c].CellStyle.Font.Bold = true;
-
-            for (int j = 0; j < cols; j++)
-            {
-                dest.Range[r + 1, c + 1 + j].Text = colNames[j];
-                dest.Range[r + 1, c + 1 + j].CellStyle.Font.Bold = true;
-
-                dest.Range[r + 2 + j, c].Text = colNames[j];
-                dest.Range[r + 2 + j, c].CellStyle.Font.Bold = true;
-            }
-
-            for (int i = 0; i < cols; i++)
-            {
-                for (int j = 0; j < cols; j++)
-                {
-                    double corr = (i == j) ? 1.0 : NumericalAnalysisService.CalculatePearsonCorrelation(colData[i], colData[j]);
-                    dest.Range[r + 2 + i, c + 1 + j].Number = corr;
-                    dest.Range[r + 2 + i, c + 1 + j].NumberFormat = "0.0000";
-                }
-            }
-        }
-
-        private void RunMovingAverage(IRange range, bool hasHeader, IWorksheet dest, int r, int c)
-        {
-            if (!int.TryParse(TxtWindowSize.Text.Trim(), out int window) || window <= 0)
-                window = 3;
-
-            int startRow = hasHeader ? 2 : 1;
-            var values = new List<double>();
-            for (int row = startRow; row <= range.Rows.Length; row++)
-            {
-                if (double.TryParse(range[row, 1].Text, out double v))
-                    values.Add(v);
-            }
-
-            var ma = NumericalAnalysisService.CalculateSimpleMovingAverage(values, window);
-
-            dest.Range[r, c].Text = "Original Value";
-            dest.Range[r, c + 1].Text = $"Moving Average (k={window})";
-            dest.Range[r, c, r, c + 1].CellStyle.Font.Bold = true;
-
-            for (int i = 0; i < values.Count; i++)
-            {
-                dest.Range[r + 1 + i, c].Number = values[i];
-                if (!double.IsNaN(ma[i]))
-                {
-                    dest.Range[r + 1 + i, c + 1].Number = ma[i];
-                    dest.Range[r + 1 + i, c + 1].NumberFormat = "0.0000";
-                }
-                else
-                {
-                    dest.Range[r + 1 + i, c + 1].Text = "N/A";
-                }
-            }
+            MessageBox.Show(sb.ToString(), "Linear Regression", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }
-

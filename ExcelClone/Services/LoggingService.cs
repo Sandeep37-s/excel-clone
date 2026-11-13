@@ -6,6 +6,7 @@ namespace ExcelClone.Services
     public static class LoggingService
     {
         private static readonly string LogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone", "Logs");
+        public static string LogDirectory => LogDir;
         private static readonly string LogFile = Path.Combine(LogDir, "app.log");
         private static readonly object LockObj = new object();
 

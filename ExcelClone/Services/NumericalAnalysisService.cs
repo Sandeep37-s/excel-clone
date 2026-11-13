@@ -1,15 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MathNet.Numerics;
 using MathNet.Numerics.Statistics;
 using MathNet.Numerics.LinearRegression;
-using Syncfusion.XlsIO;
+using unvell.ReoGrid;
+using ClosedXML.Excel;
 
 namespace ExcelClone.Services
 {
     public class DescriptiveStatisticsResult
     {
-        public string VariableName { get; set; } = "Variable";
         public double Mean { get; set; }
         public double StandardError { get; set; }
         public double Median { get; set; }
@@ -25,44 +26,44 @@ namespace ExcelClone.Services
         public int Count { get; set; }
     }
 
-    public class RegressionResult
+    public class LinearRegressionResult
     {
-        public double Slope { get; set; }
         public double Intercept { get; set; }
+        public double Slope { get; set; }
         public double RSquared { get; set; }
         public double StandardError { get; set; }
-        public int Observations { get; set; }
     }
 
     public static class NumericalAnalysisService
     {
-        public static DescriptiveStatisticsResult CalculateDescriptiveStatistics(IEnumerable<double> values, string name = "Data")
+        public static DescriptiveStatisticsResult CalculateDescriptiveStatistics(IEnumerable<double> values)
         {
-            var list = values.Where(v => !double.IsNaN(v) && !double.IsInfinity(v)).ToList();
-            if (list.Count == 0)
-                throw new InvalidOperationException("Input data contains no valid numeric values.");
+            var data = values.Where(v => !double.IsNaN(v) && !double.IsInfinity(v)).ToList();
+            if (data.Count == 0)
+            {
+                throw new ArgumentException("Dataset contains no valid numeric values.");
+            }
 
-            double count = list.Count;
-            double mean = list.Mean();
-            double stdDev = count > 1 ? list.StandardDeviation() : 0.0;
-            double stdErr = count > 1 ? stdDev / Math.Sqrt(count) : 0.0;
-            double median = list.Median();
-            double min = list.Min();
-            double max = list.Max();
-            double sum = list.Sum();
-            double variance = count > 1 ? list.Variance() : 0.0;
-            double skewness = count > 2 ? list.Skewness() : 0.0;
-            double kurtosis = count > 3 ? list.Kurtosis() : 0.0;
+            double mean = data.Mean();
+            double variance = data.Variance();
+            double stdDev = data.StandardDeviation();
+            double median = data.Median();
+            double min = data.Minimum();
+            double max = data.Maximum();
+            double sum = data.Sum();
+            double count = data.Count;
+            double stdError = count > 1 ? stdDev / Math.Sqrt(count) : 0;
+            double kurtosis = count > 3 ? data.Kurtosis() : 0;
+            double skewness = count > 2 ? data.Skewness() : 0;
 
             // Mode calculation
-            var modeGroup = list.GroupBy(v => v).OrderByDescending(g => g.Count()).FirstOrDefault();
-            double mode = modeGroup?.Key ?? mean;
+            var grouped = data.GroupBy(v => v).OrderByDescending(g => g.Count()).ToList();
+            double mode = grouped.First().Key;
 
             return new DescriptiveStatisticsResult
             {
-                VariableName = name,
                 Mean = mean,
-                StandardError = stdErr,
+                StandardError = stdError,
                 Median = median,
                 Mode = mode,
                 StandardDeviation = stdDev,
@@ -77,48 +78,60 @@ namespace ExcelClone.Services
             };
         }
 
-        public static RegressionResult CalculateLinearRegression(IList<double> x, IList<double> y)
+        public static LinearRegressionResult CalculateLinearRegression(IEnumerable<double> xVals, IEnumerable<double> yVals)
         {
-            if (x.Count != y.Count || x.Count < 2)
-                throw new ArgumentException("X and Y datasets must have equal lengths and at least 2 observations.");
+            var x = xVals.ToArray();
+            var y = yVals.ToArray();
 
-            var (intercept, slope) = SimpleRegression.Fit(x.ToArray(), y.ToArray());
-
-            // Compute R^2
-            double r = Correlation.Pearson(x, y);
-            double rSquared = r * r;
-
-            // Compute Residual Standard Error
-            double sse = 0.0;
-            for (int i = 0; i < x.Count; i++)
+            if (x.Length != y.Length || x.Length < 2)
             {
-                double pred = intercept + slope * x[i];
-                double diff = y[i] - pred;
-                sse += diff * diff;
+                throw new ArgumentException("X and Y arrays must have identical length of at least 2 observations.");
             }
-            double se = x.Count > 2 ? Math.Sqrt(sse / (x.Count - 2)) : 0.0;
 
-            return new RegressionResult
+            var p = SimpleRegression.Fit(x, y);
+            double rSquared = GoodnessOfFit.RSquared(x.Select(val => p.Item1 + p.Item2 * val), y);
+
+            // Compute standard error of estimate
+            double sumSqResiduals = 0;
+            for (int i = 0; i < x.Length; i++)
             {
-                Slope = slope,
-                Intercept = intercept,
+                double pred = p.Item1 + p.Item2 * x[i];
+                sumSqResiduals += Math.Pow(y[i] - pred, 2);
+            }
+            double se = x.Length > 2 ? Math.Sqrt(sumSqResiduals / (x.Length - 2)) : 0;
+
+            return new LinearRegressionResult
+            {
+                Intercept = p.Item1,
+                Slope = p.Item2,
                 RSquared = rSquared,
-                StandardError = se,
-                Observations = x.Count
+                StandardError = se
             };
         }
 
-        public static double CalculatePearsonCorrelation(IList<double> x, IList<double> y)
+        public static List<double> CalculateExponentialSmoothing(IEnumerable<double> values, double alpha)
         {
-            if (x.Count != y.Count || x.Count < 2)
-                throw new ArgumentException("Datasets must be of equal size and have at least 2 points.");
-            return Correlation.Pearson(x, y);
+            var data = values.ToList();
+            if (data.Count == 0) return new List<double>();
+            if (alpha <= 0 || alpha > 1) throw new ArgumentOutOfRangeException(nameof(alpha), "Damping factor alpha must be in (0, 1].");
+
+            var result = new List<double>(data.Count);
+            double s = data[0];
+            result.Add(s);
+
+            for (int i = 1; i < data.Count; i++)
+            {
+                s = alpha * data[i] + (1 - alpha) * s;
+                result.Add(s);
+            }
+            return result;
         }
 
-        public static List<double> CalculateSimpleMovingAverage(IList<double> data, int windowSize)
+        public static List<double> CalculateMovingAverage(IEnumerable<double> values, int windowSize)
         {
+            var data = values.ToList();
             if (windowSize <= 0 || windowSize > data.Count)
-                throw new ArgumentException("Window size must be greater than 0 and less than or equal to data count.");
+                throw new ArgumentOutOfRangeException(nameof(windowSize), "Interval must be > 0 and <= sample size.");
 
             var result = new List<double>();
             for (int i = 0; i < data.Count; i++)
@@ -140,31 +153,27 @@ namespace ExcelClone.Services
             return result;
         }
 
-        /// <summary>
-        /// Solves Goal Seek using Secant / Bisection numerical method on an active worksheet.
-        /// </summary>
-        public static bool SolveGoalSeek(IWorksheet sheet, string targetCellAddress, double targetValue, string changingCellAddress, out double resultValue, int maxIterations = 100, double tolerance = 0.0001)
+        public static bool SolveGoalSeek(Worksheet sheet, string targetCellAddress, double targetValue, string changingCellAddress, out double resultValue, int maxIterations = 100, double tolerance = 0.0001)
         {
-            var targetCell = sheet.Range[targetCellAddress];
-            var changingCell = sheet.Range[changingCellAddress];
+            var targetCell = sheet.Cells[targetCellAddress];
+            var changingCell = sheet.Cells[changingCellAddress];
 
-            double x0 = changingCell.Number;
+            double x0 = ParseNumericValue(changingCell?.Data);
             if (Math.Abs(x0) < 1e-9) x0 = 1.0;
 
-            changingCell.Number = x0;
-            sheet.EnableSheetCalculations();
-            double y0 = ParseNumericValue(targetCell.CalculatedValue) - targetValue;
+            if (changingCell != null) changingCell.Data = x0;
+            sheet.Recalculate();
+            double y0 = ParseNumericValue(targetCell?.Data) - targetValue;
             if (Math.Abs(y0) <= tolerance)
             {
                 resultValue = x0;
                 return true;
             }
 
-            // Step 2: Perturb x slightly to find slope
             double x1 = x0 + (Math.Abs(x0) > 1.0 ? 0.05 * x0 : 0.1);
-            changingCell.Number = x1;
-            sheet.EnableSheetCalculations();
-            double y1 = ParseNumericValue(targetCell.CalculatedValue) - targetValue;
+            if (changingCell != null) changingCell.Data = x1;
+            sheet.Recalculate();
+            double y1 = ParseNumericValue(targetCell?.Data) - targetValue;
 
             for (int iter = 0; iter < maxIterations; iter++)
             {
@@ -176,23 +185,70 @@ namespace ExcelClone.Services
 
                 if (Math.Abs(y1 - y0) < 1e-12)
                 {
-                    // Degenerate slope: nudge x1
                     x1 += 0.5;
-                    changingCell.Number = x1;
-                    sheet.EnableSheetCalculations();
-                    y1 = ParseNumericValue(targetCell.CalculatedValue) - targetValue;
+                    if (changingCell != null) changingCell.Data = x1;
+                    sheet.Recalculate();
+                    y1 = ParseNumericValue(targetCell?.Data) - targetValue;
                     continue;
                 }
 
-                // Secant update
                 double xNext = x1 - y1 * ((x1 - x0) / (y1 - y0));
                 x0 = x1;
                 y0 = y1;
                 x1 = xNext;
 
-                changingCell.Number = x1;
-                sheet.EnableSheetCalculations();
-                y1 = ParseNumericValue(targetCell.CalculatedValue) - targetValue;
+                if (changingCell != null) changingCell.Data = x1;
+                sheet.Recalculate();
+                y1 = ParseNumericValue(targetCell?.Data) - targetValue;
+            }
+
+            resultValue = x1;
+            return Math.Abs(y1) <= (tolerance * 10);
+        }
+
+        public static bool SolveGoalSeek(IXLWorksheet sheet, string targetCellAddress, double targetValue, string changingCellAddress, out double resultValue, int maxIterations = 100, double tolerance = 0.0001)
+        {
+            var targetCell = sheet.Cell(targetCellAddress);
+            var changingCell = sheet.Cell(changingCellAddress);
+
+            double x0 = ParseNumericValue(changingCell.Value);
+            if (Math.Abs(x0) < 1e-9) x0 = 1.0;
+
+            changingCell.Value = x0;
+            double y0 = ParseNumericValue(targetCell.Value) - targetValue;
+            if (Math.Abs(y0) <= tolerance)
+            {
+                resultValue = x0;
+                return true;
+            }
+
+            double x1 = x0 + (Math.Abs(x0) > 1.0 ? 0.05 * x0 : 0.1);
+            changingCell.Value = x1;
+            double y1 = ParseNumericValue(targetCell.Value) - targetValue;
+
+            for (int iter = 0; iter < maxIterations; iter++)
+            {
+                if (Math.Abs(y1) <= tolerance)
+                {
+                    resultValue = x1;
+                    return true;
+                }
+
+                if (Math.Abs(y1 - y0) < 1e-12)
+                {
+                    x1 += 0.5;
+                    changingCell.Value = x1;
+                    y1 = ParseNumericValue(targetCell.Value) - targetValue;
+                    continue;
+                }
+
+                double xNext = x1 - y1 * ((x1 - x0) / (y1 - y0));
+                x0 = x1;
+                y0 = y1;
+                x1 = xNext;
+
+                changingCell.Value = x1;
+                y1 = ParseNumericValue(targetCell.Value) - targetValue;
             }
 
             resultValue = x1;
@@ -209,4 +265,3 @@ namespace ExcelClone.Services
         }
     }
 }
-

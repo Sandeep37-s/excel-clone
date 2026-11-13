@@ -6,26 +6,29 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using Microsoft.Win32;
-using Syncfusion.XlsIO;
+using unvell.ReoGrid;
+using ClosedXML.Excel;
 using ExcelClone.Services;
 
 namespace ExcelClone
 {
     public partial class DataTransformationWindow : Window
     {
-        private readonly IWorkbook _workbook;
+        private readonly ReoGridControl? _gridControl;
+        private readonly Worksheet? _sourceSheet;
         private DataTable _currentTable;
         private DataTable _initialTable;
         private readonly List<string> _appliedSteps = new();
 
-        public DataTransformationWindow(IWorkbook workbook, IWorksheet? sourceSheet = null)
+        public DataTransformationWindow(ReoGridControl? gridControl = null, Worksheet? sourceSheet = null)
         {
             InitializeComponent();
-            _workbook = workbook;
+            _gridControl = gridControl;
+            _sourceSheet = sourceSheet;
             _currentTable = new DataTable();
             _initialTable = new DataTable();
 
-            if (sourceSheet != null && sourceSheet.UsedRange != null && sourceSheet.UsedRange.Rows.Length > 0)
+            if (sourceSheet != null)
             {
                 LoadFromWorksheet(sourceSheet);
             }
@@ -55,14 +58,13 @@ namespace ExcelClone
             SetTable(dt, "Source (Demo Transactions)");
         }
 
-        private void LoadFromWorksheet(IWorksheet sheet)
+        private void LoadFromWorksheet(Worksheet sheet)
         {
             try
             {
                 var dt = new DataTable(sheet.Name);
-                var range = sheet.UsedRange;
-                int rows = range.Rows.Length;
-                int cols = range.Columns.Length;
+                int rows = Math.Min(sheet.RowCount, 500);
+                int cols = Math.Min(sheet.ColumnCount, 30);
 
                 if (rows == 0 || cols == 0)
                 {
@@ -70,24 +72,28 @@ namespace ExcelClone
                     return;
                 }
 
-                for (int c = 1; c <= cols; c++)
+                for (int c = 0; c < cols; c++)
                 {
-                    string header = range[1, c].Text;
-                    if (string.IsNullOrWhiteSpace(header)) header = $"Column_{c}";
+                    string header = sheet.Cells[0, c]?.Data?.ToString()?.Trim() ?? "";
+                    if (string.IsNullOrWhiteSpace(header)) header = $"Column_{c + 1}";
                     dt.Columns.Add(header, typeof(string));
                 }
 
-                for (int r = 2; r <= rows; r++)
+                for (int r = 1; r < rows; r++)
                 {
                     var rowVals = new object[cols];
-                    for (int c = 1; c <= cols; c++)
+                    bool hasData = false;
+                    for (int c = 0; c < cols; c++)
                     {
-                        rowVals[c - 1] = range[r, c].Text;
+                        var val = sheet.Cells[r, c]?.Data?.ToString();
+                        rowVals[c] = val ?? "";
+                        if (!string.IsNullOrEmpty(val)) hasData = true;
                     }
-                    dt.Rows.Add(rowVals);
+                    if (hasData) dt.Rows.Add(rowVals);
                 }
 
-                SetTable(dt, $"Source ({sheet.Name})");
+                if (dt.Rows.Count == 0) CreateDemoData();
+                else SetTable(dt, $"Source ({sheet.Name})");
             }
             catch (Exception ex)
             {
@@ -134,30 +140,43 @@ namespace ExcelClone
 
                     if (ext == ".csv" || ext == ".txt")
                     {
-                        string[] lines = File.ReadAllLines(dlg.FileName, Encoding.UTF8);
-                        if (lines.Length == 0) return;
-                        char delimiter = lines[0].Contains('\t') ? '\t' : ',';
-                        string[] headers = lines[0].Split(delimiter);
-                        foreach (var h in headers) dt.Columns.Add(h.Trim('\"', ' '));
-
-                        for (int i = 1; i < lines.Length; i++)
+                        string[] lines = File.ReadAllLines(dlg.FileName);
+                        if (lines.Length > 0)
                         {
-                            if (string.IsNullOrWhiteSpace(lines[i])) continue;
-                            string[] parts = lines[i].Split(delimiter);
-                            var rowVals = new object[headers.Length];
-                            for (int j = 0; j < Math.Min(parts.Length, headers.Length); j++)
-                                rowVals[j] = parts[j].Trim('\"', ' ');
-                            dt.Rows.Add(rowVals);
+                            char delimiter = lines[0].Contains('\t') ? '\t' : (lines[0].Contains(';') ? ';' : ',');
+                            string[] headers = lines[0].Split(delimiter);
+                            foreach (var h in headers) dt.Columns.Add(h.Trim().Trim('"'));
+
+                            for (int i = 1; i < lines.Length; i++)
+                            {
+                                if (!string.IsNullOrWhiteSpace(lines[i]))
+                                {
+                                    string[] parts = lines[i].Split(delimiter);
+                                    var row = dt.NewRow();
+                                    for (int j = 0; j < Math.Min(dt.Columns.Count, parts.Length); j++)
+                                        row[j] = parts[j].Trim().Trim('"');
+                                    dt.Rows.Add(row);
+                                }
+                            }
                         }
                     }
-                    else
+                    else if (ext == ".xlsx")
                     {
-                        using (var eng = new ExcelEngine())
+                        using var wb = new XLWorkbook(dlg.FileName);
+                        var ws = wb.Worksheets.First();
+                        var used = ws.RangeUsed();
+                        if (used != null)
                         {
-                            var wb = eng.Excel.Workbooks.Open(dlg.FileName);
-                            var ws = wb.Worksheets[0];
-                            LoadFromWorksheet(ws);
-                            return;
+                            for (int c = 1; c <= used.ColumnCount(); c++)
+                                dt.Columns.Add(ws.Cell(1, c).GetString());
+
+                            for (int r = 2; r <= used.RowCount(); r++)
+                            {
+                                var row = dt.NewRow();
+                                for (int c = 1; c <= used.ColumnCount(); c++)
+                                    row[c - 1] = ws.Cell(r, c).Value.ToString();
+                                dt.Rows.Add(row);
+                            }
                         }
                     }
 
@@ -166,88 +185,85 @@ namespace ExcelClone
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"File import failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LoggingService.LogError("Failed to import source file in Data Transformation", ex);
+                    MessageBox.Show($"Import Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
         private void BtnRemoveDuplicates_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                var uniqueTable = _currentTable.Clone();
-                var seen = new HashSet<string>();
+            if (_currentTable.Rows.Count == 0) return;
+            var distinct = _currentTable.AsEnumerable()
+                .GroupBy(r => string.Join("|", r.ItemArray))
+                .Select(g => g.First())
+                .CopyToDataTable();
 
-                foreach (DataRow row in _currentTable.Rows)
-                {
-                    string key = string.Join("|||", row.ItemArray.Select(x => x?.ToString() ?? ""));
-                    if (seen.Add(key))
-                    {
-                        uniqueTable.ImportRow(row);
-                    }
-                }
-
-                int removed = _currentTable.Rows.Count - uniqueTable.Rows.Count;
-                _currentTable = uniqueTable;
-                _appliedSteps.Add($"Remove Duplicates ({removed} removed)");
-                RefreshView();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Remove Duplicates failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            int removed = _currentTable.Rows.Count - distinct.Rows.Count;
+            _currentTable = distinct;
+            _appliedSteps.Add($"Remove Duplicates (Purged {removed} rows)");
+            RefreshView();
         }
 
         private void BtnFilterRows_Click(object sender, RoutedEventArgs e)
         {
             if (_currentTable.Columns.Count == 0) return;
+            string col = _currentTable.Columns[0].ColumnName;
 
-            string colName = _currentTable.Columns[0].ColumnName;
-            var prompt = new SimpleInputDialog("Filter Rows", $"Keep rows where column '{colName}' does NOT equal:", "Cancelled");
-            if (prompt.ShowDialog() == true)
+            var prompt = new SimpleInputDialog("Filter Rows", $"Filter rows where column '{col}' contains:", "Retail");
+            if (prompt.ShowDialog() == true && !string.IsNullOrWhiteSpace(prompt.InputValue))
             {
-                string excludeVal = prompt.InputValue.Trim();
-                var filtered = _currentTable.Clone();
-                foreach (DataRow row in _currentTable.Rows)
+                string match = prompt.InputValue.Trim();
+                var filtered = _currentTable.AsEnumerable()
+                    .Where(r => r[col]?.ToString()?.IndexOf(match, StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (filtered.Any())
                 {
-                    if (row[colName]?.ToString() != excludeVal)
-                    {
-                        filtered.ImportRow(row);
-                    }
+                    _currentTable = filtered.CopyToDataTable();
+                    _appliedSteps.Add($"Filter Rows ('{col}' contains '{match}')");
+                    RefreshView();
                 }
-                _currentTable = filtered;
-                _appliedSteps.Add($"Filter Rows ({colName} != '{excludeVal}')");
-                RefreshView();
+                else
+                {
+                    MessageBox.Show($"No rows matched criteria: '{match}'", "Filter Result", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
         }
 
         private void BtnSplitColumn_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentTable.Columns.Count < 2) return;
-            string targetCol = _currentTable.Columns[1].ColumnName;
+            if (_currentTable.Columns.Count == 0) return;
+            string col = _currentTable.Columns.Count > 1 ? _currentTable.Columns[1].ColumnName : _currentTable.Columns[0].ColumnName;
 
-            var prompt = new SimpleInputDialog("Split Column", $"Split column '{targetCol}' by delimiter:", "_");
-            if (prompt.ShowDialog() == true)
+            var prompt = new SimpleInputDialog("Split Column", $"Split column '{col}' by delimiter:", "_");
+            if (prompt.ShowDialog() == true && !string.IsNullOrEmpty(prompt.InputValue))
             {
                 string delim = prompt.InputValue;
-                var splitTable = _currentTable.Copy();
-                string newCol1 = $"{targetCol}_1";
-                string newCol2 = $"{targetCol}_2";
+                var updated = _currentTable.Copy();
+                string newCol1 = $"{col}_Prefix";
+                string newCol2 = $"{col}_Suffix";
 
-                splitTable.Columns.Add(newCol1, typeof(string));
-                splitTable.Columns.Add(newCol2, typeof(string));
+                updated.Columns.Add(newCol1, typeof(string));
+                updated.Columns.Add(newCol2, typeof(string));
 
-                foreach (DataRow row in splitTable.Rows)
+                foreach (DataRow row in updated.Rows)
                 {
-                    string orig = row[targetCol]?.ToString() ?? "";
-                    string[] parts = orig.Split(new[] { delim }, 2, StringSplitOptions.None);
-                    row[newCol1] = parts.Length > 0 ? parts[0] : "";
-                    row[newCol2] = parts.Length > 1 ? parts[1] : "";
+                    string s = row[col]?.ToString() ?? "";
+                    int idx = s.IndexOf(delim);
+                    if (idx >= 0)
+                    {
+                        row[newCol1] = s.Substring(0, idx);
+                        row[newCol2] = s.Substring(idx + delim.Length);
+                    }
+                    else
+                    {
+                        row[newCol1] = s;
+                        row[newCol2] = "";
+                    }
                 }
 
-                splitTable.Columns.Remove(targetCol);
-                _currentTable = splitTable;
-                _appliedSteps.Add($"Split Column ('{targetCol}' by '{delim}')");
+                _currentTable = updated;
+                _appliedSteps.Add($"Split Column ('{col}' by '{delim}')");
                 RefreshView();
             }
         }
@@ -338,30 +354,39 @@ namespace ExcelClone
             try
             {
                 string sheetName = "Transformed_" + DateTime.Now.ToString("HHmmss");
-                var sheet = _workbook.Worksheets.Create(sheetName);
+                Worksheet? targetSheet = null;
 
-                // Write Headers
-                for (int c = 0; c < _currentTable.Columns.Count; c++)
+                if (_gridControl != null)
                 {
-                    sheet.Range[1, c + 1].Text = _currentTable.Columns[c].ColumnName;
-                    sheet.Range[1, c + 1].CellStyle.Font.Bold = true;
+                    targetSheet = _gridControl.CreateWorksheet(sheetName);
+                }
+                else if (_sourceSheet != null)
+                {
+                    targetSheet = _sourceSheet;
                 }
 
-                // Write Rows
-                for (int r = 0; r < _currentTable.Rows.Count; r++)
+                if (targetSheet != null)
                 {
+                    // Write Headers
                     for (int c = 0; c < _currentTable.Columns.Count; c++)
                     {
-                        var val = _currentTable.Rows[r][c];
-                        if (val is double d) sheet.Range[r + 2, c + 1].Number = d;
-                        else if (val is int i) sheet.Range[r + 2, c + 1].Number = i;
-                        else sheet.Range[r + 2, c + 1].Text = val?.ToString() ?? "";
+                        targetSheet.Cells[0, c].Data = _currentTable.Columns[c].ColumnName;
                     }
+
+                    // Write Rows
+                    for (int r = 0; r < _currentTable.Rows.Count; r++)
+                    {
+                        for (int c = 0; c < _currentTable.Columns.Count; c++)
+                        {
+                            targetSheet.Cells[r + 1, c].Data = _currentTable.Rows[r][c]?.ToString();
+                        }
+                    }
+
+                    targetSheet.Recalculate();
+                    LoggingService.LogInfo($"Transformed dataset applied into worksheet '{targetSheet.Name}' ({_currentTable.Rows.Count} rows).");
+                    MessageBox.Show($"Transformed dataset successfully loaded into sheet '{targetSheet.Name}' ({_currentTable.Rows.Count} rows, {_currentTable.Columns.Count} columns).", "Transformation Applied", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
-                sheet.UsedRange.AutofitColumns();
-                LoggingService.LogInfo($"Transformed dataset applied and loaded into worksheet '{sheetName}' ({_currentTable.Rows.Count} rows).");
-                MessageBox.Show($"Transformed dataset successfully loaded into sheet '{sheetName}' ({_currentTable.Rows.Count} rows, {_currentTable.Columns.Count} columns).", "Transformation Applied", MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
                 Close();
             }
@@ -373,4 +398,3 @@ namespace ExcelClone
         }
     }
 }
-

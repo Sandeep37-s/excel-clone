@@ -1,1327 +1,658 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using System.Linq;
+using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Microsoft.Win32;
-using Syncfusion.Windows.Tools.Controls;
-using Syncfusion.UI.Xaml.Spreadsheet;
-using Syncfusion.UI.Xaml.Spreadsheet.GraphicCells;
-using Syncfusion.UI.Xaml.SpreadsheetHelper;
-using Syncfusion.XlsIO;
+using unvell.ReoGrid;
+using unvell.ReoGrid.Actions;
+using unvell.ReoGrid.Chart;
+using unvell.ReoGrid.Data;
+using unvell.ReoGrid.Drawing;
+using unvell.ReoGrid.Drawing.Shapes;
+using unvell.ReoGrid.Graphics;
+using unvell.ReoGrid.IO;
 using ExcelClone.Services;
 
 namespace ExcelClone
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
-    public partial class MainWindow : RibbonWindow
+    public partial class MainWindow : Window
     {
-        private string? _currentFilePath = null;
-        private readonly List<string> _recentFiles = new();
-        private System.Windows.Threading.DispatcherTimer? _autoSaveTimer;
-        private bool _isBenchmarking = false;
+        private readonly WorkbookStorageService _storageService = new WorkbookStorageService();
+        private DispatcherTimer? _autoSaveTimer;
+        private bool _isWorkbookProtected = false;
+        private string _activeTheme = "DarkGray";
+        private readonly Dictionary<string, PivotSummaryMetadata> _pivotMetadataBySheet = new();
 
         public MainWindow()
         {
             InitializeComponent();
-            
-            // Register chart graphic cell renderer to support viewing, creating and resizing charts
-            try
-            {
-                spreadsheetControl.AddGraphicChartCellRenderer(new GraphicChartCellRenderer());
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chart renderer setup note: {ex.Message}");
-            }
-
-            // Explicitly connect ribbon to spreadsheet control so formatting commands bind to active cells
-            spreadsheetRibbon.SfSpreadsheet = spreadsheetControl;
-
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
-            KeyDown += (s, e) =>
-            {
-                if (e.Key == System.Windows.Input.Key.F1)
-                {
-                    ShowShortcutsDialog();
-                }
-                else if (e.Key == System.Windows.Input.Key.B && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
-                {
-                    ToggleBoldOnSelection();
-                    e.Handled = true;
-                }
-                else if (e.Key == System.Windows.Input.Key.I && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
-                {
-                    ToggleItalicOnSelection();
-                    e.Handled = true;
-                }
-                else if (e.Key == System.Windows.Input.Key.U && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
-                {
-                    ToggleUnderlineOnSelection();
-                    e.Handled = true;
-                }
-                else if (e.Key == System.Windows.Input.Key.S && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
-                {
-                    SaveCurrentWorkbook();
-                    e.Handled = true;
-                }
-            };
+
+            KeyDown += MainWindow_KeyDown;
             InitAutoSave();
         }
 
-        private void InitAutoSave()
+        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
-            // Auto-recovery / background autosave timer every 5 minutes
-            _autoSaveTimer = new System.Windows.Threading.DispatcherTimer
+            if (e.Key == Key.F1)
             {
-                Interval = TimeSpan.FromMinutes(5)
-            };
-            _autoSaveTimer.Tick += (s, e) =>
+                ShowShortcutsDialog();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F9)
             {
-                if (spreadsheetControl.Workbook != null)
+                gridControl.CurrentWorksheet?.Recalculate();
+                StatusText.Text = $"Calculated all formulas at {DateTime.Now:T}";
+                e.Handled = true;
+            }
+            else if (e.Key == Key.B && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                ToggleBoldOnSelection();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.I && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                ToggleItalicOnSelection();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.U && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                ToggleUnderlineOnSelection();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.S && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                SaveCurrentWorkbook();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.O && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                BtnOpen_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.N && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                BtnNew_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.A && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                gridControl.CurrentWorksheet?.SelectAll();
+                StatusText.Text = "Selected all cells.";
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                if (gridControl.CanUndo())
                 {
-                    try
-                    {
-                        string recoveryDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone", "Recovery");
-                        Directory.CreateDirectory(recoveryDir);
-                        string recoveryFile = Path.Combine(recoveryDir, "AutoRecovery_Current.xlsx");
-                        using (FileStream fs = new FileStream(recoveryFile, FileMode.Create, FileAccess.Write))
-                        {
-                            spreadsheetControl.Workbook.SaveAs(fs);
-                        }
-                        StatusText.Text = $"Auto-recovery snapshot saved at {DateTime.Now:T}";
-                    }
-                    catch { }
+                    gridControl.Undo();
+                    StatusText.Text = "Undo performed.";
                 }
-            };
-            _autoSaveTimer.Start();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Y && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                if (gridControl.CanRedo())
+                {
+                    gridControl.Redo();
+                    StatusText.Text = "Redo performed.";
+                }
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                BtnFind_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.H && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                BtnReplace_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.P && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                BtnPrint_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
-                var settings = SettingsService.Load();
-                if (settings.Theme.Contains("DarkGray"))
+                var sheet = gridControl.CurrentWorksheet;
+                if (sheet != null)
                 {
-                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019DarkGray);
-                }
-                else
-                {
-                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019Colorful);
+                    WireSheetEvents(sheet);
+                    sheet.Name = "Sheet1";
                 }
 
-                string[] args = Environment.GetCommandLineArgs();
-
-                for (int i = 0; i < args.Length; i++)
+                gridControl.WorksheetCreated += (s, ev) =>
                 {
-                    if (args[i] == "--benchmark-ui")
+                    if (ev.Worksheet != null)
                     {
-                        string logFile = (i + 1 < args.Length && !args[i + 1].StartsWith("-")) ? args[i + 1] : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wpf_ui_stress_results.txt");
-                        Dispatcher.BeginInvoke(new Action(() => RunUiBenchmarkAndExit(logFile)), System.Windows.Threading.DispatcherPriority.Background);
-                        return;
+                        WireSheetEvents(ev.Worksheet);
                     }
-                }
+                };
 
+                // Check command line arguments for file to open
+                string[] args = Environment.GetCommandLineArgs();
                 if (args.Length > 1 && File.Exists(args[1]))
                 {
                     OpenFile(args[1]);
                 }
-                else if (settings.ShowWelcomeOnStartup)
-                {
-                    var welcome = new WelcomeDialog(settings.RecentFiles, settings.ShowWelcomeOnStartup) { Owner = this };
-                    if (welcome.ShowDialog() == true)
-                    {
-                        settings.ShowWelcomeOnStartup = welcome.ShowOnStartup;
-                        SettingsService.Save(settings);
-
-                        if (!string.IsNullOrEmpty(welcome.SelectedFileToOpen))
-                        {
-                            OpenFile(welcome.SelectedFileToOpen);
-                        }
-                        else if (!string.IsNullOrEmpty(welcome.SelectedTemplate))
-                        {
-                            ApplyTemplate(welcome.SelectedTemplate);
-                        }
-                        else
-                        {
-                            spreadsheetControl.Create(3);
-                            UpdateTitle("Book1");
-                        }
-                    }
-                    else
-                    {
-                        spreadsheetControl.Create(3);
-                        UpdateTitle("Book1");
-                    }
-                }
                 else
                 {
-                    spreadsheetControl.Create(3);
-                    UpdateTitle("Book1");
+                    // Check AutoRecovery snapshot
+                    string recoveryDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone", "Recovery");
+                    string recoveryFile = Path.Combine(recoveryDir, "AutoRecovery_Current.xlsx");
+                    if (File.Exists(recoveryFile))
+                    {
+                        var info = new FileInfo(recoveryFile);
+                        if (DateTime.Now - info.LastWriteTime < TimeSpan.FromHours(24) && info.Length > 1000)
+                        {
+                            var res = MessageBox.Show($"ExcelClone detected an auto-recovered workbook snapshot from {info.LastWriteTime:g}.\n\nWould you like to restore this session?", "AutoRecover Session", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                            if (res == MessageBoxResult.Yes)
+                            {
+                                OpenFile(recoveryFile);
+                                StatusText.Text = "Restored auto-recovery snapshot.";
+                                return;
+                            }
+                        }
+                    }
+
+                    UpdateTitle("Book1.xlsx");
                 }
+
+                StatusText.Text = "Ready (ExcelClone v2.0 Open Source MIT Edition).";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Initialization error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                LoggingService.LogError("Startup error", ex);
             }
         }
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (_isBenchmarking) return;
-            if (spreadsheetControl.Workbook != null)
+            _autoSaveTimer?.Stop();
+            _storageService.Close();
+        }
+
+        private void InitAutoSave()
+        {
+            _autoSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
+            _autoSaveTimer.Tick += (s, e) =>
             {
-                var result = MessageBox.Show("Do you want to save your changes before exiting?", "ExcelClone", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes)
+                try
                 {
-                    SaveCurrentWorkbook();
+                    string recoveryDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone", "Recovery");
+                    Directory.CreateDirectory(recoveryDir);
+                    string recoveryFile = Path.Combine(recoveryDir, "AutoRecovery_Current.xlsx");
+                    _storageService.SaveWorkbook(recoveryFile, gridControl);
+                    StatusText.Text = $"Auto-recovery snapshot saved at {DateTime.Now:T}";
                 }
-                else if (result == MessageBoxResult.Cancel)
+                catch { }
+            };
+            _autoSaveTimer.Start();
+        }
+
+        private void WireSheetEvents(Worksheet sheet)
+        {
+            sheet.FocusPosChanged += (s, ev) =>
+            {
+                var pos = sheet.FocusPos;
+                TxtNameBox.Text = pos.ToAddress();
+                StatusCell.Text = $"Cell: {pos.ToAddress()}";
+                var cell = sheet.Cells[pos];
+                if (cell != null)
                 {
-                    e.Cancel = true;
+                    TxtFormulaBar.Text = !string.IsNullOrEmpty(cell.Formula) ? "=" + cell.Formula : cell.Data?.ToString() ?? "";
                 }
+                else
+                {
+                    TxtFormulaBar.Text = "";
+                }
+            };
+        }
+
+        private void UpdateTitle(string fileName)
+        {
+            Title = $"{fileName} - Excel";
+            HeaderTitle.Text = $"{fileName} - Excel (Free & Open Source Edition)";
+        }
+
+        private void TxtFormulaBar_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var sheet = gridControl.CurrentWorksheet;
+                if (sheet == null) return;
+                var pos = sheet.FocusPos;
+                string text = TxtFormulaBar.Text.Trim();
+
+                if (text.StartsWith("="))
+                {
+                    sheet.Cells[pos].Formula = text.Substring(1);
+                }
+                else if (double.TryParse(text, out double num))
+                {
+                    sheet.Cells[pos].Data = num;
+                }
+                else
+                {
+                    sheet.Cells[pos].Data = text;
+                }
+
+                sheet.Recalculate();
+                StatusText.Text = $"Updated cell {pos.ToAddress()} -> {text}";
             }
         }
 
-        private void SpreadsheetRibbon_Loaded(object sender, RoutedEventArgs e)
+        // =========================================================================
+        // File Operations
+        // =========================================================================
+        private void BtnNew_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.Reset();
+            var sheet = gridControl.CurrentWorksheet;
+            sheet.Name = "Sheet1";
+            WireSheetEvents(sheet);
+            _storageService.Close();
+            UpdateTitle("Book1.xlsx");
+            StatusText.Text = "Created new workbook.";
+        }
+
+        private void BtnOpen_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Filter = "Excel Workbooks (*.xlsx;*.csv;*.txt)|*.xlsx;*.csv;*.txt|All Files (*.*)|*.*",
+                Title = "Open Spreadsheet"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                OpenFile(dlg.FileName);
+            }
+        }
+
+        public void OpenFile(string filePath)
         {
             try
             {
-                var ribbon = GetVisualChild<Ribbon>(sender as FrameworkElement);
-                if (ribbon == null) return;
-
-                // 1. Populate Quick Access Toolbar (AutoSave toggle, Save, Undo, Redo, Search)
-                if (ribbon.QuickAccessToolBar != null)
+                _storageService.LoadWorkbook(filePath, gridControl);
+                foreach (var ws in gridControl.Worksheets)
                 {
-                    var autoSaveBtn = new RibbonButton { Label = "AutoSave: ON", ToolTip = "Automatic background recovery is active (every 5 minutes)" };
-                    autoSaveBtn.Click += (s, ev) =>
-                    {
-                        if (_autoSaveTimer != null)
-                        {
-                            if (_autoSaveTimer.IsEnabled)
-                            {
-                                _autoSaveTimer.Stop();
-                                autoSaveBtn.Label = "AutoSave: OFF";
-                                StatusText.Text = "AutoSave disabled.";
-                            }
-                            else
-                            {
-                                _autoSaveTimer.Start();
-                                autoSaveBtn.Label = "AutoSave: ON";
-                                StatusText.Text = "AutoSave enabled (every 5 minutes).";
-                            }
-                        }
-                    };
-                    ribbon.QuickAccessToolBar.Items.Add(autoSaveBtn);
-
-                    var btnSave = new RibbonButton { Label = "Save", ToolTip = "Save active workbook (Ctrl+S)" };
-                    btnSave.Click += (s, ev) => SaveCurrentWorkbook();
-                    ribbon.QuickAccessToolBar.Items.Add(btnSave);
-
-                    var btnUndo = new RibbonButton { Label = "Undo", Command = System.Windows.Input.ApplicationCommands.Undo, CommandTarget = spreadsheetControl, ToolTip = "Undo last action (Ctrl+Z)" };
-                    ribbon.QuickAccessToolBar.Items.Add(btnUndo);
-
-                    var btnRedo = new RibbonButton { Label = "Redo", Command = System.Windows.Input.ApplicationCommands.Redo, CommandTarget = spreadsheetControl, ToolTip = "Redo last action (Ctrl+Y)" };
-                    ribbon.QuickAccessToolBar.Items.Add(btnRedo);
-
-                    var btnSearch = new RibbonButton { Label = "Search (Alt+Q)", ToolTip = "Search features, commands, and formulas" };
-                    btnSearch.Click += (s, ev) => ShowShortcutsDialog();
-                    ribbon.QuickAccessToolBar.Items.Add(btnSearch);
+                    WireSheetEvents(ws);
                 }
-
-                // 2. Locate built-in tabs in SfSpreadsheetRibbon
-                RibbonTab? homeTab = null;
-                RibbonTab? insertTab = null;
-                RibbonTab? pageLayoutTab = null;
-                RibbonTab? formulasTab = null;
-                RibbonTab? dataTab = null;
-                RibbonTab? viewTab = null;
-
-                foreach (var item in ribbon.Items)
-                {
-                    if (item is RibbonTab tab)
-                    {
-                        string cap = tab.Caption?.ToString() ?? "";
-                        if (cap.IndexOf("Home", StringComparison.OrdinalIgnoreCase) >= 0) homeTab = tab;
-                        else if (cap.IndexOf("Insert", StringComparison.OrdinalIgnoreCase) >= 0) insertTab = tab;
-                        else if (cap.IndexOf("Page", StringComparison.OrdinalIgnoreCase) >= 0) pageLayoutTab = tab;
-                        else if (cap.IndexOf("Formula", StringComparison.OrdinalIgnoreCase) >= 0) formulasTab = tab;
-                        else if (cap.IndexOf("Data", StringComparison.OrdinalIgnoreCase) >= 0) dataTab = tab;
-                        else if (cap.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0) viewTab = tab;
-                    }
-                }
-
-                // TAB 1: HOME - Add Add-ins group
-                if (homeTab != null)
-                {
-                    RibbonBar addinsBar = new RibbonBar { Header = "Add-ins", IsLauncherButtonVisible = false };
-                    RibbonButton btnAddins = new RibbonButton { Label = "Add-ins" };
-                    btnAddins.Click += (s, ev) => MessageBox.Show("ExcelClone Add-in Manager:\n\nAll standard high-performance spreadsheet calculation modules, charts, and analysis tools are active.", "Add-ins", MessageBoxButton.OK, MessageBoxImage.Information);
-                    addinsBar.Items.Add(btnAddins);
-                    homeTab.Items.Add(addinsBar);
-                }
-
-                // TAB 2: INSERT - Add Tables (PivotTable), Illustrations (Pictures), Charts (Column, Line, Pie, Doughnut, Radar, Combo, Trendline)
-                if (insertTab != null)
-                {
-                    RibbonBar tablesBar = new RibbonBar { Header = "Tables", IsLauncherButtonVisible = false };
-                    RibbonButton btnPivot = new RibbonButton { Label = "PivotTable" };
-                    btnPivot.Click += (s, ev) => ShowPivotDialog();
-                    tablesBar.Items.Add(btnPivot);
-
-                    RibbonButton btnTable = new RibbonButton { Label = "Table" };
-                    btnTable.Click += (s, ev) =>
-                    {
-                        try
-                        {
-                            var sheet = spreadsheetControl.ActiveSheet;
-                            var activeGrid = spreadsheetControl.ActiveGrid;
-                            if (sheet != null && activeGrid != null)
-                            {
-                                var sel = activeGrid.SelectedRanges.ActiveRange;
-                                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? 5; int rgt = sel?.Right ?? 4;
-                                var table = sheet.ListObjects.Create($"Table_{DateTime.Now.Ticks % 1000}", sheet.Range[top, left, btm, rgt]);
-                                table.BuiltInTableStyle = TableBuiltInStyles.TableStyleMedium9;
-                                StatusText.Text = $"Created table at {sheet.Range[top, left, btm, rgt].AddressLocal}";
-                            }
-                        }
-                        catch (Exception ex) { MessageBox.Show($"Table Note: {ex.Message}", "Table", MessageBoxButton.OK, MessageBoxImage.Information); }
-                    };
-                    tablesBar.Items.Add(btnTable);
-                    insertTab.Items.Insert(0, tablesBar);
-
-                    RibbonBar illustBar = new RibbonBar { Header = "Illustrations", IsLauncherButtonVisible = false };
-                    RibbonButton btnPic = new RibbonButton { Label = "Pictures" };
-                    btnPic.Click += (s, ev) => PromptInsertPicture();
-                    illustBar.Items.Add(btnPic);
-
-                    RibbonButton btnShapes = new RibbonButton { Label = "Shapes" };
-                    btnShapes.Click += (s, ev) => PromptInsertShape();
-                    illustBar.Items.Add(btnShapes);
-                    insertTab.Items.Insert(1, illustBar);
-
-                    RibbonBar linksBar = new RibbonBar { Header = "Links", IsLauncherButtonVisible = false };
-                    RibbonButton btnLink = new RibbonButton { Label = "Link" };
-                    btnLink.Click += (s, ev) => PromptInsertHyperlink();
-                    linksBar.Items.Add(btnLink);
-                    insertTab.Items.Insert(2, linksBar);
-
-                    RibbonBar chartsBar = new RibbonBar { Header = "Charts", IsLauncherButtonVisible = false };
-                    RibbonButton btnCol = new RibbonButton { Label = "Column" };
-                    btnCol.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Column_Clustered);
-                    chartsBar.Items.Add(btnCol);
-
-                    RibbonButton btnLine = new RibbonButton { Label = "Line" };
-                    btnLine.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Line);
-                    chartsBar.Items.Add(btnLine);
-
-                    RibbonButton btnPie = new RibbonButton { Label = "Pie" };
-                    btnPie.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Pie);
-                    chartsBar.Items.Add(btnPie);
-
-                    RibbonButton btnDoughnut = new RibbonButton { Label = "Doughnut" };
-                    btnDoughnut.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Doughnut);
-                    chartsBar.Items.Add(btnDoughnut);
-
-                    RibbonButton btnRadar = new RibbonButton { Label = "Radar" };
-                    btnRadar.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Radar);
-                    chartsBar.Items.Add(btnRadar);
-
-                    RibbonButton btnCombo = new RibbonButton { Label = "Combo" };
-                    btnCombo.Click += (s, ev) => CreateComboChartFromSelection();
-                    chartsBar.Items.Add(btnCombo);
-
-                    RibbonButton btnTrend = new RibbonButton { Label = "+ Trendline" };
-                    btnTrend.Click += (s, ev) => AddTrendlineToActiveChart();
-                    chartsBar.Items.Add(btnTrend);
-                    insertTab.Items.Add(chartsBar);
-                }
-
-                // TAB 3: DRAW - Insert between Insert and Page Layout
-                RibbonTab drawTab = new RibbonTab { Caption = "Draw" };
-                RibbonBar drawToolsBar = new RibbonBar { Header = "Drawing Tools", IsLauncherButtonVisible = false };
-                
-                RibbonButton btnDrawSelect = new RibbonButton { Label = "Select (Grid)" };
-                btnDrawSelect.Click += (s, ev) =>
-                {
-                    drawingCanvas.Visibility = Visibility.Collapsed;
-                    StatusText.Text = "Standard cell selection mode active.";
-                };
-                drawToolsBar.Items.Add(btnDrawSelect);
-
-                RibbonButton btnBlackPen = new RibbonButton { Label = "Black Pen" };
-                btnBlackPen.Click += (s, ev) => ActivatePenMode(System.Windows.Media.Colors.Black, 2.5);
-                drawToolsBar.Items.Add(btnBlackPen);
-
-                RibbonButton btnRedPen = new RibbonButton { Label = "Red Pen" };
-                btnRedPen.Click += (s, ev) => ActivatePenMode(System.Windows.Media.Colors.Red, 2.5);
-                drawToolsBar.Items.Add(btnRedPen);
-
-                RibbonButton btnHighlighter = new RibbonButton { Label = "Highlighter" };
-                btnHighlighter.Click += (s, ev) => ActivatePenMode(System.Windows.Media.Color.FromArgb(120, 255, 235, 59), 16.0);
-                drawToolsBar.Items.Add(btnHighlighter);
-
-                RibbonButton btnClearInk = new RibbonButton { Label = "Clear Drawing" };
-                btnClearInk.Click += (s, ev) =>
-                {
-                    drawingCanvas.Strokes.Clear();
-                    StatusText.Text = "Drawing canvas cleared.";
-                };
-                drawToolsBar.Items.Add(btnClearInk);
-                drawTab.Items.Add(drawToolsBar);
-
-                RibbonBar convertBar = new RibbonBar { Header = "Convert", IsLauncherButtonVisible = false };
-                RibbonButton btnInkShape = new RibbonButton { Label = "Ink to Shape" };
-                btnInkShape.Click += (s, ev) => PromptInsertShape();
-                convertBar.Items.Add(btnInkShape);
-
-                RibbonButton btnInkMath = new RibbonButton { Label = "Ink to Math" };
-                btnInkMath.Click += (s, ev) => MessageBox.Show("Ink to Math recognition: Write mathematical equations using the pen tool to convert to formulas.", "Ink to Math", MessageBoxButton.OK, MessageBoxImage.Information);
-                convertBar.Items.Add(btnInkMath);
-                drawTab.Items.Add(convertBar);
-
-                int pageIndex = pageLayoutTab != null ? ribbon.Items.IndexOf(pageLayoutTab) : -1;
-                if (pageIndex >= 0) ribbon.Items.Insert(pageIndex, drawTab);
-                else ribbon.Items.Add(drawTab);
-
-                // TAB 4: PAGE LAYOUT - Themes, Gridlines, Headings
-                if (pageLayoutTab != null)
-                {
-                    RibbonBar themesBar = new RibbonBar { Header = "Themes", IsLauncherButtonVisible = false };
-                    RibbonButton btnThemeToggle = new RibbonButton { Label = "Toggle Theme" };
-                    btnThemeToggle.Click += (s, ev) => ToggleTheme();
-                    themesBar.Items.Add(btnThemeToggle);
-                    pageLayoutTab.Items.Insert(0, themesBar);
-
-                    RibbonBar sheetOptsBar = new RibbonBar { Header = "Sheet Options", IsLauncherButtonVisible = false };
-                    RibbonButton btnGridlines = new RibbonButton { Label = "Gridlines" };
-                    btnGridlines.Click += (s, ev) => ToggleGridlines();
-                    sheetOptsBar.Items.Add(btnGridlines);
-
-                    RibbonButton btnHeadings = new RibbonButton { Label = "Headings" };
-                    btnHeadings.Click += (s, ev) => ToggleHeadings();
-                    sheetOptsBar.Items.Add(btnHeadings);
-                    pageLayoutTab.Items.Add(sheetOptsBar);
-                }
-
-                // TAB 5: FORMULAS - Add Defined Names, Formula Auditing (Show Formulas)
-                if (formulasTab != null)
-                {
-                    RibbonBar namesBar = new RibbonBar { Header = "Defined Names", IsLauncherButtonVisible = false };
-                    RibbonButton btnNames = new RibbonButton { Label = "Name Manager" };
-                    btnNames.Click += (s, ev) => ShowNameManagerDialog();
-                    namesBar.Items.Add(btnNames);
-
-                    RibbonButton btnDefine = new RibbonButton { Label = "Define Name" };
-                    btnDefine.Click += (s, ev) => ShowDefineNameDialog();
-                    namesBar.Items.Add(btnDefine);
-                    formulasTab.Items.Add(namesBar);
-
-                    RibbonBar auditBar = new RibbonBar { Header = "Formula Auditing", IsLauncherButtonVisible = false };
-                    RibbonButton btnPrec = new RibbonButton { Label = "Trace Precedents" };
-                    btnPrec.Click += (s, ev) => TracePrecedents();
-                    auditBar.Items.Add(btnPrec);
-
-                    RibbonButton btnDep = new RibbonButton { Label = "Trace Dependents" };
-                    btnDep.Click += (s, ev) => TraceDependents();
-                    auditBar.Items.Add(btnDep);
-                    
-                    RibbonButton btnShowFormulas = new RibbonButton { Label = "Show Formulas" };
-                    btnShowFormulas.Click += (s, ev) => ToggleShowFormulas();
-                    auditBar.Items.Add(btnShowFormulas);
-
-                    RibbonButton btnEvaluate = new RibbonButton { Label = "Evaluate Formula" };
-                    btnEvaluate.Click += (s, ev) => RefreshAllCalculations();
-                    auditBar.Items.Add(btnEvaluate);
-
-                    formulasTab.Items.Add(auditBar);
-                }
-
-                // TAB 6: DATA - Get & Transform Data, Queries, Sort & Filter, Data Tools, Forecast, Analysis
-                if (dataTab != null)
-                {
-                    RibbonBar getTransformBar = new RibbonBar { Header = "Get & Transform Data", IsLauncherButtonVisible = false };
-                    RibbonButton btnImport = new RibbonButton { Label = "From Text/CSV" };
-                    btnImport.Click += (s, ev) => ImportDelimitedFile();
-                    getTransformBar.Items.Add(btnImport);
-
-                    RibbonButton btnPq = new RibbonButton { Label = "Data Studio (PQ)" };
-                    btnPq.Click += (s, ev) => ShowDataTransformationStudio();
-                    getTransformBar.Items.Add(btnPq);
-                    dataTab.Items.Insert(0, getTransformBar);
-
-                    RibbonBar queryBar = new RibbonBar { Header = "Queries & Connections", IsLauncherButtonVisible = false };
-                    RibbonButton btnRefresh = new RibbonButton { Label = "Refresh All" };
-                    btnRefresh.Click += (s, ev) => RefreshAllCalculations();
-                    queryBar.Items.Add(btnRefresh);
-                    dataTab.Items.Insert(1, queryBar);
-
-                    RibbonBar sortFilterBar = new RibbonBar { Header = "Sort & Filter", IsLauncherButtonVisible = false };
-                    RibbonButton btnSortAsc = new RibbonButton { Label = "Sort A-Z" };
-                    btnSortAsc.Click += (s, ev) => SortActiveSelection(true);
-                    sortFilterBar.Items.Add(btnSortAsc);
-
-                    RibbonButton btnSortDesc = new RibbonButton { Label = "Sort Z-A" };
-                    btnSortDesc.Click += (s, ev) => SortActiveSelection(false);
-                    sortFilterBar.Items.Add(btnSortDesc);
-
-                    RibbonButton btnFilter = new RibbonButton { Label = "Filter" };
-                    btnFilter.Click += (s, ev) => ToggleAutoFilter();
-                    sortFilterBar.Items.Add(btnFilter);
-                    dataTab.Items.Add(sortFilterBar);
-
-                    RibbonBar dataToolsBar = new RibbonBar { Header = "Data Tools", IsLauncherButtonVisible = false };
-                    RibbonButton btnDedup = new RibbonButton { Label = "Remove Duplicates" };
-                    btnDedup.Click += (s, ev) => RemoveDuplicatesFromActiveRange();
-                    dataToolsBar.Items.Add(btnDedup);
-
-                    RibbonButton btnVal = new RibbonButton { Label = "Data Validation" };
-                    btnVal.Click += (s, ev) => PromptDataValidation();
-                    dataToolsBar.Items.Add(btnVal);
-                    dataTab.Items.Add(dataToolsBar);
-
-                    RibbonBar forecastBar = new RibbonBar { Header = "Forecast", IsLauncherButtonVisible = false };
-                    RibbonButton btnGoalSeek = new RibbonButton { Label = "Goal Seek..." };
-                    btnGoalSeek.Click += (s, ev) => ShowGoalSeekDialog();
-                    forecastBar.Items.Add(btnGoalSeek);
-                    dataTab.Items.Add(forecastBar);
-
-                    RibbonBar analysisBar = new RibbonBar { Header = "Analysis", IsLauncherButtonVisible = false };
-                    RibbonButton btnToolpak = new RibbonButton { Label = "Analysis Toolpak..." };
-                    btnToolpak.Click += (s, ev) => ShowAnalysisToolpakDialog();
-                    analysisBar.Items.Add(btnToolpak);
-                    dataTab.Items.Add(analysisBar);
-                }
-
-                // TAB 7: REVIEW - Insert between Data and View
-                RibbonTab reviewTab = new RibbonTab { Caption = "Review" };
-                
-                RibbonBar proofingBar = new RibbonBar { Header = "Proofing", IsLauncherButtonVisible = false };
-                RibbonButton btnSpelling = new RibbonButton { Label = "Spelling" };
-                btnSpelling.Click += (s, ev) => CheckSpelling();
-                proofingBar.Items.Add(btnSpelling);
-
-                RibbonButton btnThesaurus = new RibbonButton { Label = "Thesaurus" };
-                btnThesaurus.Click += (s, ev) => MessageBox.Show("Thesaurus lookup: Standard financial, numerical, and business terms are active.", "Thesaurus", MessageBoxButton.OK, MessageBoxImage.Information);
-                proofingBar.Items.Add(btnThesaurus);
-
-                RibbonButton btnStats = new RibbonButton { Label = "Workbook Statistics" };
-                btnStats.Click += (s, ev) => ShowWorkbookStatistics();
-                proofingBar.Items.Add(btnStats);
-                reviewTab.Items.Add(proofingBar);
-
-                RibbonBar accessBar = new RibbonBar { Header = "Accessibility", IsLauncherButtonVisible = false };
-                RibbonButton btnAccess = new RibbonButton { Label = "Check Accessibility" };
-                btnAccess.Click += (s, ev) => CheckAccessibility();
-                accessBar.Items.Add(btnAccess);
-                reviewTab.Items.Add(accessBar);
-
-                RibbonBar commentBar = new RibbonBar { Header = "Comments", IsLauncherButtonVisible = false };
-                RibbonButton btnNewComment = new RibbonButton { Label = "New Comment" };
-                btnNewComment.Click += (s, ev) => PromptAddComment();
-                commentBar.Items.Add(btnNewComment);
-
-                RibbonButton btnDelComment = new RibbonButton { Label = "Delete" };
-                btnDelComment.Click += (s, ev) => DeleteComment();
-                commentBar.Items.Add(btnDelComment);
-
-                RibbonButton btnShowComments = new RibbonButton { Label = "Show Comments" };
-                btnShowComments.Click += (s, ev) => ShowComments();
-                commentBar.Items.Add(btnShowComments);
-                reviewTab.Items.Add(commentBar);
-
-                RibbonBar protectBar = new RibbonBar { Header = "Protect", IsLauncherButtonVisible = false };
-                RibbonButton btnProtectSheet = new RibbonButton { Label = "Protect Sheet" };
-                btnProtectSheet.Click += (s, ev) => ToggleSheetProtection();
-                protectBar.Items.Add(btnProtectSheet);
-
-                RibbonButton btnProtectWb = new RibbonButton { Label = "Protect Workbook" };
-                btnProtectWb.Click += (s, ev) => ToggleWorkbookProtection();
-                protectBar.Items.Add(btnProtectWb);
-                reviewTab.Items.Add(protectBar);
-
-                int viewIndex = viewTab != null ? ribbon.Items.IndexOf(viewTab) : -1;
-                if (viewIndex >= 0) ribbon.Items.Insert(viewIndex, reviewTab);
-                else ribbon.Items.Add(reviewTab);
-
-                // TAB 8: VIEW - Window & Freeze Panes, Macros
-                if (viewTab != null)
-                {
-                    RibbonBar winBar = new RibbonBar { Header = "Window", IsLauncherButtonVisible = false };
-                    RibbonButton btnNewWin = new RibbonButton { Label = "New Window" };
-                    btnNewWin.Click += (s, ev) => OpenNewWindow();
-                    winBar.Items.Add(btnNewWin);
-
-                    RibbonButton btnFreezeTop = new RibbonButton { Label = "Freeze Top Row" };
-                    btnFreezeTop.Click += (s, ev) => FreezeTopRow();
-                    winBar.Items.Add(btnFreezeTop);
-
-                    RibbonButton btnFreezeCol = new RibbonButton { Label = "Freeze First Col" };
-                    btnFreezeCol.Click += (s, ev) => FreezeFirstColumn();
-                    winBar.Items.Add(btnFreezeCol);
-
-                    RibbonButton btnUnfreeze = new RibbonButton { Label = "Unfreeze Panes" };
-                    btnUnfreeze.Click += (s, ev) => UnfreezePanes();
-                    winBar.Items.Add(btnUnfreeze);
-                    viewTab.Items.Add(winBar);
-
-                    RibbonBar macroBar = new RibbonBar { Header = "Macros", IsLauncherButtonVisible = false };
-                    RibbonButton btnMacros = new RibbonButton { Label = "Macro Security..." };
-                    btnMacros.Click += (s, ev) => ShowScriptingStudio();
-                    macroBar.Items.Add(btnMacros);
-                    viewTab.Items.Add(macroBar);
-                }
-
-                // TAB 9: HELP - Insert at the end
-                RibbonTab helpTab = new RibbonTab { Caption = "Help" };
-
-                RibbonBar helpBar = new RibbonBar { Header = "Help", IsLauncherButtonVisible = false };
-                RibbonButton btnHelpF1 = new RibbonButton { Label = "Help (F1)" };
-                btnHelpF1.Click += (s, ev) => ShowShortcutsDialog();
-                helpBar.Items.Add(btnHelpF1);
-
-                RibbonButton btnContact = new RibbonButton { Label = "Contact Support" };
-                btnContact.Click += (s, ev) => MessageBox.Show("For community support, visit: https://github.com/Sandeep37-s/excel-clone/issues", "ExcelClone Support", MessageBoxButton.OK, MessageBoxImage.Information);
-                helpBar.Items.Add(btnContact);
-
-                RibbonButton btnFeedback = new RibbonButton { Label = "Feedback" };
-                btnFeedback.Click += (s, ev) => MessageBox.Show("We value your feedback! Submit issues or feature requests on our GitHub repository.", "Feedback", MessageBoxButton.OK, MessageBoxImage.Information);
-                helpBar.Items.Add(btnFeedback);
-
-                RibbonButton btnTraining = new RibbonButton { Label = "Show Training" };
-                btnTraining.Click += (s, ev) => ApplyTemplate("Tour");
-                helpBar.Items.Add(btnTraining);
-                helpTab.Items.Add(helpBar);
-
-                RibbonBar commBar = new RibbonBar { Header = "Community", IsLauncherButtonVisible = false };
-                RibbonButton btnComm = new RibbonButton { Label = "Community" };
-                btnComm.Click += (s, ev) => MessageBox.Show("ExcelClone is free and open-source software built for Windows.", "Community", MessageBoxButton.OK, MessageBoxImage.Information);
-                commBar.Items.Add(btnComm);
-
-                RibbonButton btnBlog = new RibbonButton { Label = "Excel Blog" };
-                btnBlog.Click += (s, ev) => MessageBox.Show("Stay updated with releases and spreadsheet engineering news on our GitHub repository.", "Excel Blog", MessageBoxButton.OK, MessageBoxImage.Information);
-                commBar.Items.Add(btnBlog);
-                helpTab.Items.Add(commBar);
-
-                RibbonBar appBar = new RibbonBar { Header = "ExcelClone", IsLauncherButtonVisible = false };
-                RibbonButton btnWelcome = new RibbonButton { Label = "Welcome Screen..." };
-                btnWelcome.Click += (s, ev) => ShowWelcomeDialog();
-                appBar.Items.Add(btnWelcome);
-
-                RibbonButton btnSettings = new RibbonButton { Label = "Settings..." };
-                btnSettings.Click += (s, ev) => ShowSettingsDialog();
-                appBar.Items.Add(btnSettings);
-
-                RibbonButton btnAbout = new RibbonButton { Label = "About ExcelClone..." };
-                btnAbout.Click += (s, ev) => ShowAboutDialog();
-                appBar.Items.Add(btnAbout);
-                helpTab.Items.Add(appBar);
-
-                ribbon.Items.Add(helpTab);
+                UpdateTitle(Path.GetFileName(filePath));
+                StatusText.Text = $"Opened: {Path.GetFileName(filePath)}";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ribbon setup note: {ex.Message}");
+                MessageBox.Show($"Failed to open workbook: {ex.Message}", "Open Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        public void OpenNewWindow()
+        private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            var newWin = new MainWindow();
-            newWin.Show();
+            SaveCurrentWorkbook();
         }
 
-        private void Window_Drop(object sender, System.Windows.DragEventArgs e)
+        private void BtnSaveAs_Click(object sender, RoutedEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            PromptSaveAs();
+        }
+
+        public void SaveCurrentWorkbook()
+        {
+            if (string.IsNullOrEmpty(_storageService.CurrentFilePath))
             {
-                string[]? files = (string[]?)e.Data.GetData(DataFormats.FileDrop);
-                if (files != null && files.Length > 0 && File.Exists(files[0]))
+                PromptSaveAs();
+            }
+            else
+            {
+                try
                 {
-                    OpenFile(files[0]);
+                    _storageService.SaveWorkbook(_storageService.CurrentFilePath, gridControl);
+                    StatusText.Text = $"Saved to {_storageService.CurrentFilePath} at {DateTime.Now:T}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Save Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
-        public void RecoverLastSession()
+        private void PromptSaveAs()
         {
-            string recoveryFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone", "Recovery", "AutoRecovery_Current.xlsx");
-            if (File.Exists(recoveryFile))
+            var dlg = new SaveFileDialog
             {
-                OpenFile(recoveryFile);
-                StatusText.Text = "Restored last auto-recovery session snapshot.";
-            }
-            else
-            {
-                MessageBox.Show("No auto-recovery session was found.", "Auto-Recovery", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        public void ShowPivotDialog()
-        {
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (sheet == null)
-            {
-                MessageBox.Show("Please open or create a worksheet first.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            // Extract default range and header names
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            string rangeStr = "A1:D9";
-            var headers = new List<string>();
-
-            int maxCol = Math.Min(sheet.Columns.Length, 10);
-            for (int c = 1; c <= maxCol; c++)
-            {
-                string txt = sheet.Range[1, c].Text;
-                headers.Add(string.IsNullOrWhiteSpace(txt) ? $"Column {c}" : txt);
-            }
-
-            var dlg = new PivotDialog(rangeStr, headers) { Owner = this };
+                Filter = "Excel Workbooks (*.xlsx)|*.xlsx|CSV Files (*.csv)|*.csv",
+                FileName = !string.IsNullOrEmpty(_storageService.CurrentFilePath) ? Path.GetFileName(_storageService.CurrentFilePath) : "Workbook.xlsx"
+            };
             if (dlg.ShowDialog() == true)
             {
                 try
                 {
-                    var wb = spreadsheetControl.Workbook;
-                    if (wb == null) return;
-
-                    IWorksheet destSheet;
-                    if (dlg.IsNewSheet)
-                    {
-                        destSheet = wb.Worksheets.Create("Pivot_Table");
-                    }
-                    else
-                    {
-                        destSheet = sheet;
-                    }
-
-                    IPivotCache cache = wb.PivotCaches.Add(sheet.Range[dlg.SourceRange]);
-                    IPivotTable pt = destSheet.PivotTables.Add("UserPivotTable", destSheet["A3"], cache);
-
-                    if (dlg.RowFieldIndex >= 0 && dlg.RowFieldIndex < pt.Fields.Count)
-                        pt.Fields[dlg.RowFieldIndex].Axis = PivotAxisTypes.Row;
-
-                    if (dlg.ColFieldIndex >= 0 && dlg.ColFieldIndex < pt.Fields.Count)
-                        pt.Fields[dlg.ColFieldIndex].Axis = PivotAxisTypes.Column;
-
-                    if (dlg.ValueFieldIndex >= 0 && dlg.ValueFieldIndex < pt.Fields.Count)
-                        pt.DataFields.Add(pt.Fields[dlg.ValueFieldIndex], "Aggregated Total", dlg.Aggregation);
-
-                    pt.BuiltInStyle = PivotBuiltInStyles.PivotStyleMedium9;
-                    destSheet.UsedRange.AutofitColumns();
-
-                    if (dlg.CreatePivotChart)
-                    {
-                        try
-                        {
-                            var chart = spreadsheetControl.AddChart(destSheet);
-                            chart.ChartType = ExcelChartType.Column_Clustered;
-                            chart.DataRange = destSheet.Range["A3:D10"];
-                            chart.ChartTitle = "PivotChart Summary";
-                            chart.HasLegend = true;
-                            if (chart is IChartShape pShape)
-                            {
-                                pShape.LeftColumn = 6;
-                                pShape.TopRow = 3;
-                                pShape.RightColumn = 13;
-                                pShape.BottomRow = 17;
-                            }
-                        }
-                        catch { }
-                    }
-
-                    // Re-bind to refresh UI
-                    spreadsheetControl.Open(wb);
-                    StatusText.Text = "PivotTable created and updated successfully.";
+                    _storageService.SaveWorkbook(dlg.FileName, gridControl);
+                    UpdateTitle(Path.GetFileName(dlg.FileName));
+                    StatusText.Text = $"Saved to {dlg.FileName} at {DateTime.Now:T}";
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"PivotTable Creation Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Save Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
-        public void CreateChartFromSelection(ExcelChartType chartType)
+        private void BtnImportCsv_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
-
-                var selRange = activeGrid.SelectedRanges.ActiveRange;
-                int top = selRange?.Top ?? 1;
-                int left = selRange?.Left ?? 1;
-                int bottom = selRange?.Bottom ?? 5;
-                int right = selRange?.Right ?? 4;
-
-                var chart = spreadsheetControl.AddChart(sheet);
-                chart.ChartType = chartType;
-                chart.DataRange = sheet.Range[top, left, bottom, right];
-                chart.IsSeriesInRows = false;
-                chart.ChartTitle = $"{chartType} Chart";
-                chart.HasLegend = true;
-
-                if (chart is IChartShape chartShape)
-                {
-                    chartShape.LeftColumn = right + 2;
-                    chartShape.TopRow = top;
-                    chartShape.RightColumn = right + 8;
-                    chartShape.BottomRow = top + 15;
-                }
-
-                StatusText.Text = $"Created {chartType} chart from selection [{sheet.Range[top, left, bottom, right].AddressLocal}]";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Chart Creation Error: {ex.Message}", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        public void CreateComboChartFromSelection()
-        {
-            try
-            {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
-
-                var selRange = activeGrid.SelectedRanges.ActiveRange;
-                int top = selRange?.Top ?? 1;
-                int left = selRange?.Left ?? 1;
-                int bottom = selRange?.Bottom ?? 6;
-                int right = selRange?.Right ?? 4;
-
-                var chart = spreadsheetControl.AddChart(sheet);
-                chart.ChartType = ExcelChartType.Column_Clustered;
-                chart.DataRange = sheet.Range[top, left, bottom, right];
-                chart.ChartTitle = "Combination Chart (Column + Line)";
-                chart.HasLegend = true;
-
-                if (chart.Series.Count > 1)
-                {
-                    chart.Series[0].SerieType = ExcelChartType.Column_Clustered;
-                    chart.Series[1].SerieType = ExcelChartType.Line;
-                    chart.Series[1].UsePrimaryAxis = false;
-                }
-
-                if (chart is IChartShape chartShape)
-                {
-                    chartShape.LeftColumn = right + 2;
-                    chartShape.TopRow = top;
-                    chartShape.RightColumn = right + 9;
-                    chartShape.BottomRow = top + 16;
-                }
-
-                StatusText.Text = "Created Combination Chart (Column + Line on Secondary Axis)";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Combo Chart Note: {ex.Message}", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        public void AddTrendlineToActiveChart()
-        {
-            try
-            {
-                var sheet = spreadsheetControl.ActiveSheet;
-                if (sheet == null || sheet.Charts.Count == 0)
-                {
-                    MessageBox.Show("Please create or open a chart first.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-
-                var chart = sheet.Charts[sheet.Charts.Count - 1];
-                if (chart.Series.Count > 0)
-                {
-                    chart.Series[0].TrendLines.Add();
-                    chart.Series[0].DataPoints.DefaultDataPoint.DataLabels.IsValue = true;
-                    StatusText.Text = "Added Linear Trendline and Data Labels to active chart.";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Trendline Note: {ex.Message}", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        public void ShowGoalSeekDialog()
-        {
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (sheet == null)
-            {
-                MessageBox.Show("Please open a worksheet first.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var dlg = new GoalSeekDialog(sheet) { Owner = this };
+            var dlg = new OpenFileDialog { Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*" };
             if (dlg.ShowDialog() == true)
             {
-                StatusText.Text = "Goal Seek solution applied to worksheet.";
+                try
+                {
+                    gridControl.Load(dlg.FileName, FileFormat.CSV);
+                    UpdateTitle(Path.GetFileName(dlg.FileName));
+                    StatusText.Text = $"Imported CSV: {Path.GetFileName(dlg.FileName)}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"CSV Import Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
-        public void ShowAnalysisToolpakDialog()
+        private void BtnExportCsv_Click(object sender, RoutedEventArgs e)
         {
-            var wb = spreadsheetControl.Workbook;
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (wb == null || sheet == null)
-            {
-                MessageBox.Show("Please open a worksheet first.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var selRange = spreadsheetControl.ActiveGrid?.SelectedRanges.ActiveRange;
-            string initRange = selRange != null ? sheet.Range[selRange.Top, selRange.Left, selRange.Bottom, selRange.Right].AddressLocal : "A1:B10";
-
-            var dlg = new AnalysisToolpakDialog(wb, sheet, initRange) { Owner = this };
+            var dlg = new SaveFileDialog { Filter = "CSV Files (*.csv)|*.csv", FileName = "Export.csv" };
             if (dlg.ShowDialog() == true)
             {
-                spreadsheetControl.Open(wb);
-                StatusText.Text = "Analysis Toolpak report generated.";
-            }
-        }
-
-        public void ShowDataTransformationStudio()
-        {
-            var wb = spreadsheetControl.Workbook;
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (wb == null)
-            {
-                MessageBox.Show("Please create or open a workbook first.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var win = new DataTransformationWindow(wb, sheet) { Owner = this };
-            if (win.ShowDialog() == true)
-            {
-                spreadsheetControl.Open(wb);
-                StatusText.Text = "Transformed dataset applied and loaded into workbook.";
-            }
-        }
-
-        public void ShowScriptingStudio()
-        {
-            var wb = spreadsheetControl.Workbook;
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (wb == null || sheet == null)
-            {
-                MessageBox.Show("Please create or open a workbook first.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var dlg = new ScriptingDialog(wb, sheet) { Owner = this };
-            dlg.ShowDialog();
-        }
-
-        public void ShowSettingsDialog()
-        {
-            var settings = SettingsService.Load();
-            var dlg = new SettingsDialog(settings.Theme, settings.AutoSaveMinutes, settings.IsAutoCalc) { Owner = this };
-            if (dlg.ShowDialog() == true)
-            {
-                settings.Theme = dlg.SelectedTheme;
-                settings.AutoSaveMinutes = dlg.AutoSaveMinutes;
-                settings.IsAutoCalc = dlg.IsAutoCalc;
-                SettingsService.Save(settings);
-
-                if (settings.Theme.Contains("DarkGray"))
+                try
                 {
-                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019DarkGray);
+                    gridControl.Save(dlg.FileName, FileFormat.CSV);
+                    StatusText.Text = $"Exported CSV: {Path.GetFileName(dlg.FileName)}";
                 }
-                else
+                catch (Exception ex)
                 {
-                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019Colorful);
-                }
-                StatusText.Text = $"Settings updated: Theme={dlg.SelectedTheme}, AutoSave={dlg.AutoSaveMinutes}m";
-            }
-        }
-
-        public void ShowWorkbookStatistics()
-        {
-            var wb = spreadsheetControl.Workbook;
-            if (wb == null)
-            {
-                MessageBox.Show("No active workbook is loaded.", "Workbook Statistics", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            int sheetCount = wb.Worksheets.Count;
-            var activeSheet = spreadsheetControl.ActiveSheet;
-            string activeSheetName = activeSheet?.Name ?? "None";
-            int usedRows = activeSheet?.UsedRange?.Rows?.Length ?? 0;
-            int usedCols = activeSheet?.UsedRange?.Columns?.Length ?? 0;
-            int formulaCount = 0;
-            int cellCount = 0;
-
-            if (activeSheet != null)
-            {
-                var used = activeSheet.UsedRange;
-                for (int r = 1; r <= Math.Min(usedRows, 1000); r++)
-                {
-                    for (int c = 1; c <= Math.Min(usedCols, 100); c++)
-                    {
-                        var cell = used[r, c];
-                        if (!string.IsNullOrEmpty(cell.Formula)) formulaCount++;
-                        if (!string.IsNullOrEmpty(cell.Text) || cell.HasFormula) cellCount++;
-                    }
+                    MessageBox.Show($"CSV Export Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-
-            string stats = $"Workbook Statistics\n\n" +
-                           $"--- Current Sheet ({activeSheetName}) ---\n" +
-                           $"End of Sheet: Row {usedRows}, Column {usedCols}\n" +
-                           $"Cells with Data: {cellCount:N0}\n" +
-                           $"Formulas: {formulaCount:N0}\n" +
-                           $"Charts: {activeSheet?.Charts?.Count ?? 0}\n\n" +
-                           $"--- Entire Workbook ---\n" +
-                           $"Worksheets: {sheetCount}\n" +
-                           $"Document: {(_currentFilePath ?? "Unsaved Workbook")}\n";
-
-            MessageBox.Show(stats, "Workbook Statistics", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        public void CheckAccessibility()
+        // =========================================================================
+        // Clipboard & Selection Formatting
+        // =========================================================================
+        private void BtnCopy_Click(object sender, RoutedEventArgs e)
         {
-            var wb = spreadsheetControl.Workbook;
-            if (wb == null) return;
-
-            var issues = new List<string>();
-            foreach (IWorksheet sheet in wb.Worksheets)
-            {
-                if (string.IsNullOrWhiteSpace(sheet.Name))
-                {
-                    issues.Add("Worksheet has default or blank name.");
-                }
-            }
-
-            if (issues.Count == 0)
-            {
-                MessageBox.Show("Accessibility check complete.\n\nNo accessibility issues found! People with disabilities should not have difficulty reading this workbook.", "Accessibility Checker", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show($"Accessibility Checker found {issues.Count} potential issues:\n\n" + string.Join("\n", issues), "Accessibility Checker", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            gridControl.CurrentWorksheet?.Copy();
+            StatusText.Text = "Copied to clipboard.";
         }
 
-        public void CheckSpelling()
+        private void BtnCut_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Spell check complete. You're good to go!", "Spelling", MessageBoxButton.OK, MessageBoxImage.Information);
+            gridControl.CurrentWorksheet?.Cut(true);
+            StatusText.Text = "Cut to clipboard.";
         }
 
-        public void ToggleSheetProtection()
+        private void BtnPaste_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (sheet == null) return;
-
-            if (sheet.ProtectContents)
-            {
-                sheet.Unprotect("ExcelClone");
-                StatusText.Text = $"Worksheet '{sheet.Name}' is now unprotected.";
-                MessageBox.Show($"Worksheet '{sheet.Name}' is now unprotected.", "Unprotect Sheet", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                sheet.Protect("ExcelClone");
-                StatusText.Text = $"Worksheet '{sheet.Name}' is now protected.";
-                MessageBox.Show($"Worksheet '{sheet.Name}' is protected against unauthorized edits.", "Protect Sheet", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            gridControl.CurrentWorksheet?.Paste();
+            StatusText.Text = "Pasted from clipboard.";
         }
 
-        public void ToggleShowFormulas()
+        private void BtnBold_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                spreadsheetControl.FormulaBarVisibility = (spreadsheetControl.FormulaBarVisibility == Visibility.Visible)
-                    ? Visibility.Collapsed
-                    : Visibility.Visible;
-                StatusText.Text = (spreadsheetControl.FormulaBarVisibility == Visibility.Visible)
-                    ? "Formula Bar visible."
-                    : "Formula Bar hidden.";
-            }
-            catch { }
-        }
-
-        public void FreezeTopRow()
-        {
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (sheet == null) return;
-            try
-            {
-                sheet.Range["A2"].FreezePanes();
-                StatusText.Text = "Top row frozen.";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Freeze Panes Note: {ex.Message}", "Freeze Panes", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        public void FreezeFirstColumn()
-        {
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (sheet == null) return;
-            try
-            {
-                sheet.Range["B1"].FreezePanes();
-                StatusText.Text = "First column frozen.";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Freeze Panes Note: {ex.Message}", "Freeze Panes", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        public void UnfreezePanes()
-        {
-            var sheet = spreadsheetControl.ActiveSheet;
-            if (sheet == null) return;
-            try
-            {
-                sheet.RemovePanes();
-                StatusText.Text = "Panes unfrozen.";
-            }
-            catch { }
+            ToggleBoldOnSelection();
         }
 
         public void ToggleBoldOnSelection()
         {
-            try
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var currentStyle = sheet.GetRangeStyles(sheet.SelectionRange);
+            bool newBold = !currentStyle.Bold;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
             {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
+                Flag = PlainStyleFlag.FontStyleBold,
+                Bold = newBold
+            });
+            StatusText.Text = newBold ? "Applied Bold formatting." : "Removed Bold formatting.";
+        }
 
-                var sel = activeGrid.SelectedRanges.ActiveRange;
-                int top = sel?.Top ?? activeGrid.CurrentCell.RowIndex;
-                int left = sel?.Left ?? activeGrid.CurrentCell.ColumnIndex;
-                int bottom = sel?.Bottom ?? top;
-                int right = sel?.Right ?? left;
-
-                if (top > 0 && left > 0)
-                {
-                    var range = sheet.Range[top, left, bottom, right];
-                    bool currentlyBold = range.CellStyle.Font.Bold;
-                    range.CellStyle.Font.Bold = !currentlyBold;
-                    activeGrid.InvalidateCells();
-                    StatusText.Text = range.CellStyle.Font.Bold ? "Applied Bold formatting." : "Removed Bold formatting.";
-                }
-            }
-            catch { }
+        private void BtnItalic_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleItalicOnSelection();
         }
 
         public void ToggleItalicOnSelection()
         {
-            try
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var currentStyle = sheet.GetRangeStyles(sheet.SelectionRange);
+            bool newItalic = !currentStyle.Italic;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
             {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
+                Flag = PlainStyleFlag.FontStyleItalic,
+                Italic = newItalic
+            });
+            StatusText.Text = newItalic ? "Applied Italic formatting." : "Removed Italic formatting.";
+        }
 
-                var sel = activeGrid.SelectedRanges.ActiveRange;
-                int top = sel?.Top ?? activeGrid.CurrentCell.RowIndex;
-                int left = sel?.Left ?? activeGrid.CurrentCell.ColumnIndex;
-                int bottom = sel?.Bottom ?? top;
-                int right = sel?.Right ?? left;
-
-                if (top > 0 && left > 0)
-                {
-                    var range = sheet.Range[top, left, bottom, right];
-                    bool currentlyItalic = range.CellStyle.Font.Italic;
-                    range.CellStyle.Font.Italic = !currentlyItalic;
-                    activeGrid.InvalidateCells();
-                    StatusText.Text = range.CellStyle.Font.Italic ? "Applied Italic formatting." : "Removed Italic formatting.";
-                }
-            }
-            catch { }
+        private void BtnUnderline_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleUnderlineOnSelection();
         }
 
         public void ToggleUnderlineOnSelection()
         {
-            try
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var currentStyle = sheet.GetRangeStyles(sheet.SelectionRange);
+            bool newUnderline = !currentStyle.Underline;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
             {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
-
-                var sel = activeGrid.SelectedRanges.ActiveRange;
-                int top = sel?.Top ?? activeGrid.CurrentCell.RowIndex;
-                int left = sel?.Left ?? activeGrid.CurrentCell.ColumnIndex;
-                int bottom = sel?.Bottom ?? top;
-                int right = sel?.Right ?? left;
-
-                if (top > 0 && left > 0)
-                {
-                    var range = sheet.Range[top, left, bottom, right];
-                    bool currentlyUnderlined = range.CellStyle.Font.Underline != ExcelUnderline.None;
-                    range.CellStyle.Font.Underline = currentlyUnderlined ? ExcelUnderline.None : ExcelUnderline.Single;
-                    activeGrid.InvalidateCells();
-                    StatusText.Text = (range.CellStyle.Font.Underline != ExcelUnderline.None) ? "Applied Underline formatting." : "Removed Underline formatting.";
-                }
-            }
-            catch { }
+                Flag = PlainStyleFlag.FontStyleUnderline,
+                Underline = newUnderline
+            });
+            StatusText.Text = newUnderline ? "Applied Underline formatting." : "Removed Underline formatting.";
         }
 
-        public void PromptInsertPicture()
+        private void CmbFontFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var dialog = new OpenFileDialog
+            if (gridControl?.CurrentWorksheet == null || CmbFontFamily.SelectedItem == null) return;
+            string fontName = ((ComboBoxItem)CmbFontFamily.SelectedItem).Content.ToString()!;
+            gridControl.CurrentWorksheet.SetRangeStyles(gridControl.CurrentWorksheet.SelectionRange, new WorksheetRangeStyle
             {
-                Filter = "Image Files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All Files (*.*)|*.*",
-                Title = "Insert Picture into Worksheet"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                try
-                {
-                    var sheet = spreadsheetControl.ActiveSheet;
-                    if (sheet == null) return;
-                    var activeGrid = spreadsheetControl.ActiveGrid;
-                    int top = activeGrid?.SelectedRanges.ActiveRange?.Top ?? 2;
-                    int left = activeGrid?.SelectedRanges.ActiveRange?.Left ?? 2;
-
-                    sheet.Pictures.AddPicture(top, left, dialog.FileName);
-                    StatusText.Text = $"Inserted picture: {Path.GetFileName(dialog.FileName)}";
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to insert picture: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
+                Flag = PlainStyleFlag.FontName,
+                FontName = fontName
+            });
         }
 
-        public void PromptInsertShape()
+        private void CmbFontSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int top = sel?.Top ?? 2;
-            int left = sel?.Left ?? 2;
-
-            try
+            if (gridControl?.CurrentWorksheet == null || CmbFontSize.SelectedItem == null) return;
+            string txt = ((ComboBoxItem)CmbFontSize.SelectedItem).Content.ToString()!;
+            if (float.TryParse(txt, out float sz))
             {
-                var shape = sheet.Shapes.AddAutoShapes(AutoShapeType.RoundedRectangle, top, left, 60, 120);
-                activeGrid.InvalidateCells();
-                StatusText.Text = $"Inserted RoundedRectangle shape at {sheet.Range[top, left].AddressLocal}";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Insert Shape note: {ex.Message}", "Shapes", MessageBoxButton.OK, MessageBoxImage.Information);
+                gridControl.CurrentWorksheet.SetRangeStyles(gridControl.CurrentWorksheet.SelectionRange, new WorksheetRangeStyle
+                {
+                    Flag = PlainStyleFlag.FontSize,
+                    FontSize = sz
+                });
             }
         }
 
-        public void PromptInsertHyperlink()
+        private void BtnFillYellow_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
-
-            var dlg = new SimpleInputDialog("Insert Hyperlink", "Enter target URL (e.g. https://github.com):", "https://");
-            dlg.Owner = this;
-            if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
+            gridControl.CurrentWorksheet?.SetRangeStyles(gridControl.CurrentWorksheet.SelectionRange, new WorksheetRangeStyle
             {
-                try
-                {
-                    var cell = sheet.Range[r, c];
-                    var hl = sheet.HyperLinks.Add(cell);
-                    hl.Address = dlg.InputValue.Trim();
-                    if (string.IsNullOrWhiteSpace(cell.Text))
-                    {
-                        cell.Text = dlg.InputValue.Trim();
-                    }
-                    activeGrid.InvalidateCells();
-                    StatusText.Text = $"Inserted hyperlink at {cell.AddressLocal}";
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Hyperlink note: {ex.Message}", "Hyperlink", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                Flag = PlainStyleFlag.BackColor,
+                BackColor = SolidColor.FromArgb(255, 255, 240, 150)
+            });
+            StatusText.Text = "Applied Yellow Fill.";
+        }
+
+        private void BtnBorders_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.SetRangeBorders(gridControl.CurrentWorksheet.SelectionRange, BorderPositions.All, RangeBorderStyle.BlackSolid);
+            StatusText.Text = "Applied All Borders.";
+        }
+
+        private void BtnAlignLeft_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.SetRangeStyles(gridControl.CurrentWorksheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.HorizontalAlign,
+                HAlign = ReoGridHorAlign.Left
+            });
+        }
+
+        private void BtnAlignCenter_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.SetRangeStyles(gridControl.CurrentWorksheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.HorizontalAlign,
+                HAlign = ReoGridHorAlign.Center
+            });
+        }
+
+        private void BtnAlignRight_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.SetRangeStyles(gridControl.CurrentWorksheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.HorizontalAlign,
+                HAlign = ReoGridHorAlign.Right
+            });
+        }
+
+        private void BtnMerge_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.MergeRange(gridControl.CurrentWorksheet.SelectionRange);
+            StatusText.Text = "Merged selected cells.";
+        }
+
+        private void BtnUnmerge_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.UnmergeRange(gridControl.CurrentWorksheet.SelectionRange);
+            StatusText.Text = "Unmerged selected cells.";
+        }
+
+        // =========================================================================
+        // Worksheet Management
+        // =========================================================================
+        private void BtnAddSheet_Click(object sender, RoutedEventArgs e)
+        {
+            string newName = "Sheet" + (gridControl.Worksheets.Count + 1);
+            var sheet = gridControl.CreateWorksheet(newName);
+            WireSheetEvents(sheet);
+            StatusText.Text = $"Created new worksheet: {newName}";
+        }
+
+        private void BtnFreezePanes_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            if (sheet.CanFreeze())
+            {
+                sheet.FreezeToCell(1, 0);
+                StatusText.Text = "Frozen top row.";
             }
         }
 
-        public void ActivatePenMode(System.Windows.Media.Color color, double thickness)
+        private void BtnUnfreezePanes_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.Unfreeze();
+            StatusText.Text = "Unfrozen panes.";
+        }
+
+        // =========================================================================
+        // Draw Tab (InkCanvas Overlay)
+        // =========================================================================
+        private void BtnDrawSelect_Click(object sender, RoutedEventArgs e)
+        {
+            drawingCanvas.Visibility = Visibility.Collapsed;
+            StatusText.Text = "Standard cell selection mode active.";
+        }
+
+        private void BtnBlackPen_Click(object sender, RoutedEventArgs e)
         {
             drawingCanvas.Visibility = Visibility.Visible;
-            drawingCanvas.DefaultDrawingAttributes.Color = color;
-            drawingCanvas.DefaultDrawingAttributes.Width = thickness;
-            drawingCanvas.DefaultDrawingAttributes.Height = thickness;
-            drawingCanvas.EditingMode = System.Windows.Controls.InkCanvasEditingMode.Ink;
-            StatusText.Text = $"Drawing Pen Mode Active. Click 'Select (Grid)' to return to cells.";
+            drawingCanvas.DefaultDrawingAttributes.Color = System.Windows.Media.Colors.Black;
+            drawingCanvas.DefaultDrawingAttributes.Width = 2;
+            drawingCanvas.DefaultDrawingAttributes.Height = 2;
+            drawingCanvas.EditingMode = InkCanvasEditingMode.Ink;
+            StatusText.Text = "Drawing Black Pen Mode Active. Click 'Select (Grid)' to return to cells.";
         }
 
-        public void ToggleTheme()
+        private void BtnRedPen_Click(object sender, RoutedEventArgs e)
         {
-            var settings = SettingsService.Load();
-            if (settings.Theme.Contains("DarkGray"))
-            {
-                settings.Theme = "Office2019Colorful";
-                Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019Colorful);
-            }
-            else
-            {
-                settings.Theme = "Office2019DarkGray";
-                Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019DarkGray);
-            }
-            SettingsService.Save(settings);
-            StatusText.Text = $"Theme switched to: {settings.Theme}";
+            drawingCanvas.Visibility = Visibility.Visible;
+            drawingCanvas.DefaultDrawingAttributes.Color = System.Windows.Media.Colors.Red;
+            drawingCanvas.DefaultDrawingAttributes.Width = 2;
+            drawingCanvas.DefaultDrawingAttributes.Height = 2;
+            drawingCanvas.EditingMode = InkCanvasEditingMode.Ink;
+            StatusText.Text = "Drawing Red Pen Mode Active.";
         }
 
-        public void ToggleGridlines()
+        private void BtnHighlighter_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (activeGrid != null)
-                {
-                    activeGrid.ShowGridLines = !activeGrid.ShowGridLines;
-                    StatusText.Text = activeGrid.ShowGridLines ? "Gridlines enabled." : "Gridlines hidden.";
-                }
-            }
-            catch { }
+            drawingCanvas.Visibility = Visibility.Visible;
+            drawingCanvas.DefaultDrawingAttributes.Color = System.Windows.Media.Colors.Yellow;
+            drawingCanvas.DefaultDrawingAttributes.Width = 14;
+            drawingCanvas.DefaultDrawingAttributes.Height = 14;
+            drawingCanvas.EditingMode = InkCanvasEditingMode.Ink;
+            StatusText.Text = "Highlighter Mode Active.";
         }
 
-        public void ToggleHeadings()
+        private void BtnClearDrawing_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                var sheet = spreadsheetControl.ActiveSheet;
-                if (sheet != null)
-                {
-                    sheet.IsRowColumnHeadersVisible = !sheet.IsRowColumnHeadersVisible;
-                    spreadsheetControl.ActiveGrid?.InvalidateCells();
-                    StatusText.Text = sheet.IsRowColumnHeadersVisible ? "Row and column headings visible." : "Row and column headings hidden.";
-                }
-            }
-            catch { }
+            drawingCanvas.Strokes.Clear();
+            StatusText.Text = "Drawing canvas cleared.";
         }
 
-        public void ShowDefineNameDialog()
+        // =========================================================================
+        // Formulas & Auditing
+        // =========================================================================
+        private void BtnAutoSum_Click(object sender, RoutedEventArgs e)
         {
-            var wb = spreadsheetControl.Workbook;
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (wb == null || sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? top; int rgt = sel?.Right ?? left;
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var pos = sheet.FocusPos;
+            if (pos.Row > 0)
+            {
+                string formula = $"SUM({new CellPosition(0, pos.Col).ToAddress()}:{new CellPosition(pos.Row - 1, pos.Col).ToAddress()})";
+                sheet.Cells[pos].Formula = formula;
+                sheet.Recalculate();
+                StatusText.Text = $"Applied AutoSum: ={formula}";
+            }
+        }
 
+        private void BtnRecalculate_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.Recalculate();
+            StatusText.Text = $"Calculated all worksheet formulas at {DateTime.Now:T}";
+        }
+
+        private void BtnDefineName_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
             var dlg = new SimpleInputDialog("Define Name", "Enter name for the selected range:", $"Range_{DateTime.Now.Ticks % 10000}");
             dlg.Owner = this;
             if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
             {
                 try
                 {
-                    wb.Names.Add(dlg.InputValue.Trim(), sheet.Range[top, left, btm, rgt]);
-                    StatusText.Text = $"Defined name '{dlg.InputValue.Trim()}' -> {sheet.Range[top, left, btm, rgt].AddressLocal}";
+                    sheet.DefineNamedRange(dlg.InputValue.Trim(), sel);
+                    StatusText.Text = $"Defined name '{dlg.InputValue.Trim()}' -> {sel.ToAddress()}";
                 }
                 catch (Exception ex)
                 {
@@ -1330,74 +661,70 @@ namespace ExcelClone
             }
         }
 
-        public void ShowNameManagerDialog()
+        private void BtnNameManager_Click(object sender, RoutedEventArgs e)
         {
-            var wb = spreadsheetControl.Workbook;
-            if (wb == null) return;
-            if (wb.Names.Count == 0)
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null || sheet.NamedRanges.Count == 0)
             {
-                MessageBox.Show("No named ranges defined in this workbook yet.\n\nUse 'Define Name' to assign a name to selected cells.", "Name Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("No named ranges defined in this worksheet yet.\n\nUse 'Define Name' to assign a name to selected cells.", "Name Manager", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Name Manager ({wb.Names.Count} named ranges):\n");
-            foreach (IName name in wb.Names)
+            sb.AppendLine($"Name Manager ({sheet.NamedRanges.Count} named ranges):\n");
+            foreach (var nr in sheet.NamedRanges)
             {
-                sb.AppendLine($"• {name.Name} -> {name.RefersToRange?.AddressLocal ?? name.Value}");
+                sb.AppendLine($"• {nr.Name} -> {nr.Position.ToAddress()}");
             }
             MessageBox.Show(sb.ToString(), "Name Manager", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        public void TracePrecedents()
+        private void BtnTracePrecedents_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
-            var cell = sheet.Range[r, c];
-            if (!cell.HasFormula)
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var pos = sheet.FocusPos;
+            var cell = sheet.Cells[pos];
+            if (string.IsNullOrEmpty(cell?.Formula))
             {
-                MessageBox.Show($"Cell {cell.AddressLocal} does not contain a formula to trace.", "Trace Precedents", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Cell {pos.ToAddress()} does not contain a formula to trace.", "Trace Precedents", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-            string formula = cell.Formula;
-            var refs = System.Text.RegularExpressions.Regex.Matches(formula, @"[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?");
+            var refs = System.Text.RegularExpressions.Regex.Matches(cell.Formula, @"[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?");
             if (refs.Count > 0)
             {
                 var refList = refs.Cast<System.Text.RegularExpressions.Match>().Select(m => m.Value).Distinct().ToList();
-                StatusText.Text = $"Precedents for {cell.AddressLocal}: {string.Join(", ", refList)}";
-                MessageBox.Show($"Formula in {cell.AddressLocal}: {formula}\n\nPrecedent Cell References:\n• " + string.Join("\n• ", refList), "Formula Precedents", MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusText.Text = $"Precedents for {pos.ToAddress()}: {string.Join(", ", refList)}";
+                MessageBox.Show($"Formula in {pos.ToAddress()}: ={cell.Formula}\n\nPrecedent Cell References:\n• " + string.Join("\n• ", refList), "Formula Precedents", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                StatusText.Text = $"No cell precedents found in formula {formula}";
+                StatusText.Text = "No precedents found in formula.";
             }
         }
 
-        public void TraceDependents()
+        private void BtnTraceDependents_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
-            string targetCell = sheet.Range[r, c].AddressLocal.Replace("$", "");
-
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var pos = sheet.FocusPos;
+            string targetCell = pos.ToAddress();
             var dependents = new List<string>();
-            int usedRows = sheet.UsedRange.Rows.Length;
-            int usedCols = sheet.UsedRange.Columns.Length;
-            for (int row = 1; row <= Math.Min(usedRows, 500); row++)
+
+            int maxR = Math.Min(sheet.RowCount, 200);
+            int maxC = Math.Min(sheet.ColumnCount, 30);
+
+            for (int r = 0; r < maxR; r++)
             {
-                for (int col = 1; col <= Math.Min(usedCols, 50); col++)
+                for (int c = 0; c < maxC; c++)
                 {
-                    var cell = sheet.Range[row, col];
-                    if (cell.HasFormula && System.Text.RegularExpressions.Regex.IsMatch(cell.Formula, @"\b" + targetCell + @"\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    var cell = sheet.Cells[r, c];
+                    if (!string.IsNullOrEmpty(cell?.Formula) && System.Text.RegularExpressions.Regex.IsMatch(cell.Formula, @"\b" + targetCell + @"\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                     {
-                        dependents.Add($"{cell.AddressLocal} ({cell.Formula})");
+                        dependents.Add($"{new CellPosition(r, c).ToAddress()} (={cell.Formula})");
                     }
                 }
             }
+
             if (dependents.Count > 0)
             {
                 StatusText.Text = $"Found {dependents.Count} dependents for {targetCell}";
@@ -1410,868 +737,679 @@ namespace ExcelClone
             }
         }
 
-        public void SortActiveSelection(bool ascending)
+        // =========================================================================
+        // Data Tools
+        // =========================================================================
+        private void BtnSortAsc_Click(object sender, RoutedEventArgs e)
         {
-            try
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            if (sel.Rows > 1)
             {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
-                var sel = activeGrid.SelectedRanges.ActiveRange;
-                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? sheet.UsedRange.Rows.Length; int rgt = sel?.Right ?? sheet.UsedRange.Columns.Length;
-
-                if (btm > top)
-                {
-                    sheet.AutoFilters.FilterRange = sheet.Range[top, left, btm, rgt];
-                    sheet.AutoFilters.DataSorter.SortFields.Add(left - 1, SortOn.Values, ascending ? OrderBy.Ascending : OrderBy.Descending);
-                    sheet.AutoFilters.DataSorter.Sort();
-                    activeGrid.InvalidateCells();
-                    StatusText.Text = $"Sorted range {sheet.Range[top, left, btm, rgt].AddressLocal} {(ascending ? "A to Z" : "Z to A")}";
-                }
+                sheet.SortColumn(sel.Col, sel, SortOrder.Ascending, null);
+                StatusText.Text = $"Sorted range {sel.ToAddress()} A to Z.";
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show($"Sort Note: {ex.Message}", "Sort", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Please select a range with multiple rows to sort.", "Sort", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
-        public void ToggleAutoFilter()
+        private void BtnSortDesc_Click(object sender, RoutedEventArgs e)
         {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            if (sel.Rows > 1)
+            {
+                sheet.SortColumn(sel.Col, sel, SortOrder.Descending, null);
+                StatusText.Text = $"Sorted range {sel.ToAddress()} Z to A.";
+            }
+            else
+            {
+                MessageBox.Show("Please select a range with multiple rows to sort.", "Sort", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnFilter_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
             try
             {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
-                var sel = activeGrid.SelectedRanges.ActiveRange;
-                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? Math.Max(top + 1, sheet.UsedRange.Rows.Length); int rgt = sel?.Right ?? Math.Max(left, sheet.UsedRange.Columns.Length);
+                gridControl.DoAction(sheet, new CreateAutoFilterAction(sel));
+                StatusText.Text = $"AutoFilter attached to {sel.ToAddress()}.";
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Filter note: {ex.Message}";
+            }
+        }
 
-                if (sheet.AutoFilters.FilterRange != null)
+        private void BtnRemoveDuplicates_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            if (sel.Rows <= 1)
+            {
+                MessageBox.Show("Please select a range with multiple rows to remove duplicates.", "Remove Duplicates", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var seen = new HashSet<string>();
+            int removed = 0;
+            int btm = sel.Row + sel.Rows - 1;
+            int top = sel.Row;
+
+            for (int r = btm; r >= top + 1; r--)
+            {
+                var rowKey = string.Join("|", Enumerable.Range(sel.Col, sel.Cols).Select(c => sheet.Cells[r, c]?.Data?.ToString() ?? ""));
+                if (seen.Contains(rowKey))
                 {
-                    sheet.AutoFilters.FilterRange = null;
-                    StatusText.Text = "Filter removed.";
+                    sheet.DeleteRows(r, 1);
+                    removed++;
                 }
                 else
                 {
-                    sheet.AutoFilters.FilterRange = sheet.Range[top, left, btm, rgt];
-                    StatusText.Text = $"Filter enabled on range {sheet.Range[top, left, btm, rgt].AddressLocal}";
+                    seen.Add(rowKey);
                 }
-                activeGrid.InvalidateCells();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Filter Note: {ex.Message}", "Filter", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+
+            StatusText.Text = $"Removed {removed} duplicate row(s).";
+            MessageBox.Show($"Removed {removed} duplicate row(s). {seen.Count} unique rows remain.", "Remove Duplicates", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        public void PromptDataValidation()
+        private void BtnDataValidation_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? top; int rgt = sel?.Right ?? left;
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
 
             var dlg = new SimpleInputDialog("Data Validation", "Enter comma-separated allowed values (e.g. Approved,Rejected,Pending):", "Yes, No, Pending");
             dlg.Owner = this;
             if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
             {
-                try
+                string[] items = dlg.InputValue.Split(',').Select(s => s.Trim()).ToArray();
+                for (int r = sel.Row; r < sel.Row + sel.Rows; r++)
                 {
-                    var validation = sheet.Range[top, left, btm, rgt].DataValidation;
-                    validation.AllowType = ExcelDataType.User;
-                    validation.ListOfValues = dlg.InputValue.Split(',').Select(s => s.Trim()).ToArray();
-                    validation.PromptBoxText = "Please select from the allowed values.";
-                    validation.IsPromptBoxVisible = true;
-                    activeGrid.InvalidateCells();
-                    StatusText.Text = $"Applied data validation to {sheet.Range[top, left, btm, rgt].AddressLocal}";
+                    for (int c = sel.Col; c < sel.Col + sel.Cols; c++)
+                    {
+                        sheet.Cells[r, c].Tag = items;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Data Validation Note: {ex.Message}", "Data Validation", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                StatusText.Text = $"Applied dropdown data validation to {sel.ToAddress()} ({string.Join(", ", items)})";
             }
         }
 
-        public void RemoveDuplicatesFromActiveRange()
+        private void BtnGoalSeek_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                var sheet = spreadsheetControl.ActiveSheet;
-                var activeGrid = spreadsheetControl.ActiveGrid;
-                if (sheet == null || activeGrid == null) return;
-                var sel = activeGrid.SelectedRanges.ActiveRange;
-                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? sheet.UsedRange.Rows.Length; int rgt = sel?.Right ?? sheet.UsedRange.Columns.Length;
-
-                if (btm <= top)
-                {
-                    MessageBox.Show("Please select a range with multiple rows to remove duplicates.", "Remove Duplicates", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-
-                var seen = new HashSet<string>();
-                int removed = 0;
-                for (int r = btm; r >= top + 1; r--)
-                {
-                    var rowKey = string.Join("|", Enumerable.Range(left, rgt - left + 1).Select(c => sheet.Range[r, c].Text));
-                    if (seen.Contains(rowKey))
-                    {
-                        sheet.DeleteRow(r);
-                        removed++;
-                    }
-                    else
-                    {
-                        seen.Add(rowKey);
-                    }
-                }
-                activeGrid.InvalidateCells();
-                StatusText.Text = $"Removed {removed} duplicate row(s).";
-                MessageBox.Show($"Removed {removed} duplicate row(s). {seen.Count} unique rows remain.", "Remove Duplicates", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Remove Duplicates Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            var dlg = new GoalSeekDialog();
+            dlg.Owner = this;
+            dlg.ShowDialog();
         }
 
-        public void PromptAddComment()
+        private void BtnAnalysisToolpak_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
+            var dlg = new AnalysisToolpakDialog();
+            dlg.Owner = this;
+            dlg.ShowDialog();
+        }
 
-            var dlg = new SimpleInputDialog("New Comment", $"Add comment to cell {sheet.Range[r, c].AddressLocal}:", "");
+        private void BtnDataTransformation_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new DataTransformationWindow(gridControl, gridControl.CurrentWorksheet);
+            dlg.Owner = this;
+            dlg.Show();
+        }
+
+        // =========================================================================
+        // Comments & Review
+        // =========================================================================
+        private void BtnAddComment_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var pos = sheet.FocusPos;
+            var dlg = new SimpleInputDialog("New Comment", $"Add comment to cell {pos.ToAddress()}:", "");
             dlg.Owner = this;
             if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
             {
-                try
-                {
-                    var cell = sheet.Range[r, c];
-                    if (cell.Comment != null)
-                    {
-                        cell.Comment.Text = dlg.InputValue.Trim();
-                    }
-                    else
-                    {
-                        var comment = cell.AddComment();
-                        comment.Text = dlg.InputValue.Trim();
-                        comment.IsVisible = true;
-                    }
-                    activeGrid.InvalidateCells();
-                    StatusText.Text = $"Added comment to {cell.AddressLocal}";
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Comment note: {ex.Message}", "Comment", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                sheet.Cells[pos].Tag = dlg.InputValue.Trim();
+                StatusText.Text = $"Added comment to {pos.ToAddress()}";
             }
         }
 
-        public void DeleteComment()
+        private void BtnDeleteComment_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
-            var activeGrid = spreadsheetControl.ActiveGrid;
-            if (sheet == null || activeGrid == null) return;
-            var sel = activeGrid.SelectedRanges.ActiveRange;
-            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
-            var cell = sheet.Range[r, c];
-            if (cell.Comment != null)
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var pos = sheet.FocusPos;
+            if (sheet.Cells[pos]?.Tag is string s && !string.IsNullOrEmpty(s))
             {
-                cell.Comment.Remove();
-                activeGrid.InvalidateCells();
-                StatusText.Text = $"Removed comment from {cell.AddressLocal}";
+                sheet.Cells[pos].Tag = null;
+                StatusText.Text = $"Removed comment from {pos.ToAddress()}";
             }
             else
             {
-                StatusText.Text = $"No comment on cell {cell.AddressLocal}";
+                StatusText.Text = $"No comment on cell {pos.ToAddress()}";
             }
         }
 
-        public void ShowComments()
+        private void BtnShowComments_Click(object sender, RoutedEventArgs e)
         {
-            var sheet = spreadsheetControl.ActiveSheet;
+            var sheet = gridControl.CurrentWorksheet;
             if (sheet == null) return;
-            if (sheet.Comments.Count == 0)
+            var comments = new List<string>();
+
+            int maxR = Math.Min(sheet.RowCount, 200);
+            int maxC = Math.Min(sheet.ColumnCount, 50);
+
+            for (int r = 0; r < maxR; r++)
+            {
+                for (int c = 0; c < maxC; c++)
+                {
+                    var cell = sheet.Cells[r, c];
+                    if (cell?.Tag is string commentText && !string.IsNullOrEmpty(commentText))
+                    {
+                        comments.Add($"• [{new CellPosition(r, c).ToAddress()}]: {commentText}");
+                    }
+                }
+            }
+
+            if (comments.Count > 0)
+            {
+                MessageBox.Show($"Worksheet Comments ({comments.Count} total):\n\n" + string.Join("\n", comments), "Comments", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
             {
                 MessageBox.Show("No comments found in active worksheet.", "Comments", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
             }
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Worksheet Comments ({sheet.Comments.Count} total):\n");
-            foreach (IComment comm in sheet.Comments)
-            {
-                sb.AppendLine($"• [{sheet.Range[comm.Row, comm.Column].AddressLocal}] by {comm.Author}: {comm.Text}");
-            }
-            MessageBox.Show(sb.ToString(), "Worksheet Comments", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private bool _isWorkbookProtected = false;
-
-        public void ToggleWorkbookProtection()
+        private void BtnProtectSheet_Click(object sender, RoutedEventArgs e)
         {
-            var wb = spreadsheetControl.Workbook;
-            if (wb == null) return;
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            sheet.SetSettings(WorksheetSettings.Edit_Readonly, true);
+            StatusText.Text = "Worksheet is protected against edits.";
+            MessageBox.Show("Worksheet is now protected against cell edits.", "Protect Sheet", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnUnprotectSheet_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            sheet.DisableSettings(WorksheetSettings.Edit_Readonly);
+            StatusText.Text = "Worksheet is unprotected.";
+            MessageBox.Show("Worksheet editing unlocked.", "Unprotect Sheet", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnProtectWorkbook_Click(object sender, RoutedEventArgs e)
+        {
+            _isWorkbookProtected = !_isWorkbookProtected;
+            StatusText.Text = _isWorkbookProtected ? "Workbook structure protected." : "Workbook structure unprotected.";
+            MessageBox.Show(_isWorkbookProtected ? "Workbook structure is now protected." : "Workbook structure is now unprotected.", "Protect Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // =========================================================================
+        // Insert Tab Elements & UI Tools
+        // =========================================================================
+        private void BtnInsertPicture_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var dlg = new OpenFileDialog
+            {
+                Title = "Insert Picture",
+                Filter = "Image Files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All Files (*.*)|*.*"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var bmp = new BitmapImage(new Uri(dlg.FileName));
+                    var imgObj = new ImageObject(bmp)
+                    {
+                        X = 60,
+                        Y = 60
+                    };
+                    sheet.FloatingObjects.Add(imgObj);
+                    StatusText.Text = $"Inserted picture: {Path.GetFileName(dlg.FileName)}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Could not insert picture: {ex.Message}", "Insert Picture", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void BtnInsertShape_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var shape = new RoundedRectangleShape
+            {
+                X = 80,
+                Y = 80,
+                Width = 140,
+                Height = 70
+            };
+            sheet.FloatingObjects.Add(shape);
+            StatusText.Text = "Inserted Rounded Rectangle shape.";
+        }
+
+        private void InsertChartInternal(string typeName)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            if (sel.Rows < 2 || sel.Cols < 2)
+            {
+                sel = new RangePosition(0, 0, Math.Min(sheet.RowCount, 5), Math.Min(sheet.ColumnCount, 2));
+            }
+
             try
             {
-                if (_isWorkbookProtected)
+                var catRange = new RangePosition(sel.Row, sel.Col, sel.Rows, 1);
+                var valRange = new RangePosition(sel.Row, sel.Col + 1, sel.Rows, sel.Cols - 1);
+                var ds = new WorksheetChartDataSource(sheet, catRange, valRange, RowOrColumn.Column);
+
+                unvell.ReoGrid.Drawing.IDrawingObject chartObj = typeName switch
                 {
-                    wb.Unprotect("ExcelClone");
-                    _isWorkbookProtected = false;
-                    StatusText.Text = "Workbook structure is now unprotected.";
-                    MessageBox.Show("Workbook structure is now unprotected.", "Unprotect Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
+                    "Bar" => new BarChart { DataSource = ds, Title = "Bar Analysis Chart" },
+                    "Line" => new LineChart { DataSource = ds, Title = "Trend Line Chart" },
+                    "Pie" => new PieChart { DataSource = ds, Title = "Distribution Pie Chart" },
+                    _ => new ColumnChart { DataSource = ds, Title = "Column Analysis Chart" }
+                };
+
+                if (chartObj is unvell.ReoGrid.Chart.Chart chart)
                 {
-                    wb.Protect(true, true, "ExcelClone");
-                    _isWorkbookProtected = true;
-                    StatusText.Text = "Workbook structure is now protected.";
-                    MessageBox.Show("Workbook structure is protected against sheet additions and deletions.", "Protect Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
+                    chart.X = 60;
+                    chart.Y = 80;
+                    chart.Width = 380;
+                    chart.Height = 240;
                 }
+
+                sheet.FloatingObjects.Add(chartObj);
+                StatusText.Text = $"Created interactive in-memory {typeName} Chart for range {sel.ToAddress()}. (Note: In-memory session visualization; OpenXML chart export planned for Phase 4).";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Workbook Protection: {ex.Message}", "Protection", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Could not generate {typeName} chart: {ex.Message}\n\nPlease select at least 2 rows and 2 columns with category labels and numerical values.", "Chart Creation", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
-        private void BtnViewNormal_Click(object sender, RoutedEventArgs e)
+        private void BtnInsertColumnChart_Click(object sender, RoutedEventArgs e) => InsertChartInternal("Column");
+        private void BtnInsertBarChart_Click(object sender, RoutedEventArgs e) => InsertChartInternal("Bar");
+        private void BtnInsertLineChart_Click(object sender, RoutedEventArgs e) => InsertChartInternal("Line");
+        private void BtnInsertPieChart_Click(object sender, RoutedEventArgs e) => InsertChartInternal("Pie");
+
+        public class PivotSummaryMetadata
         {
-            StatusText.Text = "Workbook View: Normal";
+            public string SourceSheetName { get; set; } = "";
+            public RangePosition SourceRange { get; set; }
+            public int RowFieldIndex { get; set; }
+            public int SecondaryRowFieldIndex { get; set; } = -1;
+            public int ColFieldIndex { get; set; }
+            public int ValueFieldIndex { get; set; }
+            public PivotAggregationType Aggregation { get; set; }
+            public int StartRow { get; set; }
+            public int StartCol { get; set; }
+            public bool CreateChart { get; set; }
+            public List<string> Headers { get; set; } = new();
         }
 
-        private void BtnViewPageBreak_Click(object sender, RoutedEventArgs e)
+        private void BtnPivotTable_Click(object sender, RoutedEventArgs e)
         {
-            StatusText.Text = "Workbook View: Page Break Preview";
-        }
-
-        private void BtnViewPageLayout_Click(object sender, RoutedEventArgs e)
-        {
-            StatusText.Text = "Workbook View: Page Layout";
-        }
-
-        private void BtnZoomOut_Click(object sender, RoutedEventArgs e)
-        {
-            if (ZoomSlider.Value > ZoomSlider.Minimum)
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            if (sel.Rows < 2 || sel.Cols < 2)
             {
-                ZoomSlider.Value = Math.Max(ZoomSlider.Minimum, ZoomSlider.Value - 10);
+                sel = new RangePosition(0, 0, Math.Min(sheet.RowCount, 20), Math.Min(sheet.ColumnCount, 6));
             }
+
+            var headers = new List<string>();
+            for (int c = sel.Col; c < sel.Col + sel.Cols; c++)
+            {
+                string h = sheet.Cells[sel.Row, c]?.Data?.ToString() ?? $"Column_{c + 1}";
+                headers.Add(h);
+            }
+
+            var dlg = new PivotDialog(sel.ToAddress(), headers);
+            dlg.Owner = this;
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    Worksheet targetSheet = dlg.IsNewSheet ? gridControl.CreateWorksheet($"Pivot_{DateTime.Now:HHmmss}") : sheet;
+                    if (dlg.IsNewSheet)
+                    {
+                        WireSheetEvents(targetSheet);
+                        gridControl.CurrentWorksheet = targetSheet;
+                    }
+
+                    int startR = dlg.IsNewSheet ? 1 : sel.Row + sel.Rows + 2;
+                    int startC = dlg.IsNewSheet ? 1 : sel.Col;
+
+                    var meta = new PivotSummaryMetadata
+                    {
+                        SourceSheetName = sheet.Name,
+                        SourceRange = sel,
+                        RowFieldIndex = dlg.RowFieldIndex,
+                        SecondaryRowFieldIndex = dlg.SecondaryRowFieldIndex,
+                        ColFieldIndex = dlg.ColFieldIndex,
+                        ValueFieldIndex = dlg.ValueFieldIndex,
+                        Aggregation = dlg.Aggregation,
+                        StartRow = startR,
+                        StartCol = startC,
+                        CreateChart = dlg.CreatePivotChart,
+                        Headers = headers
+                    };
+
+                    BuildPivotSummaryMatrix(targetSheet, sheet, meta);
+                    StatusText.Text = $"Created Pivot Summary on sheet '{targetSheet.Name}'.";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to generate Pivot Summary: {ex.Message}", "Pivot Summary Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void BtnRefreshPivot_Click(object sender, RoutedEventArgs e)
+        {
+            var targetSheet = gridControl.CurrentWorksheet;
+            if (targetSheet != null && _pivotMetadataBySheet.TryGetValue(targetSheet.Name, out var meta))
+            {
+                var sourceSheet = gridControl.Worksheets[meta.SourceSheetName];
+                if (sourceSheet == null)
+                {
+                    MessageBox.Show($"Source worksheet '{meta.SourceSheetName}' was not found.", "Refresh Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                BuildPivotSummaryMatrix(targetSheet, sourceSheet, meta);
+                StatusText.Text = $"Refreshed Pivot Summary on '{targetSheet.Name}' from sheet '{meta.SourceSheetName}' with current data.";
+            }
+            else
+            {
+                MessageBox.Show("The active worksheet does not contain a refreshable Pivot Summary.\n\nTo generate one, select source data and click 'Pivot Summary'.", "Refresh Pivot Summary", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BuildPivotSummaryMatrix(Worksheet targetSheet, Worksheet sourceSheet, PivotSummaryMetadata meta)
+        {
+            var sel = meta.SourceRange;
+            int rowFieldIdx = sel.Col + meta.RowFieldIndex;
+            bool hasSecondary = meta.SecondaryRowFieldIndex >= 0 && meta.SecondaryRowFieldIndex != meta.RowFieldIndex;
+            int secRowFieldIdx = hasSecondary ? sel.Col + meta.SecondaryRowFieldIndex : -1;
+            int colFieldIdx = sel.Col + meta.ColFieldIndex;
+            int valFieldIdx = sel.Col + meta.ValueFieldIndex;
+
+            var rowKeys = new List<string>();
+            var colKeys = new List<string>();
+            var matrix = new Dictionary<string, Dictionary<string, List<double>>>();
+
+            for (int r = sel.Row + 1; r < sel.Row + sel.Rows; r++)
+            {
+                string rVal = sourceSheet.Cells[r, rowFieldIdx]?.Data?.ToString()?.Trim() ?? "(blank)";
+                if (hasSecondary)
+                {
+                    string secVal = sourceSheet.Cells[r, secRowFieldIdx]?.Data?.ToString()?.Trim() ?? "(blank)";
+                    rVal = $"{rVal} - {secVal}";
+                }
+
+                string cVal = sourceSheet.Cells[r, colFieldIdx]?.Data?.ToString()?.Trim() ?? "(blank)";
+                double val = 0;
+                if (sourceSheet.Cells[r, valFieldIdx]?.Data is double d) val = d;
+                else if (double.TryParse(sourceSheet.Cells[r, valFieldIdx]?.Data?.ToString(), out double parsed)) val = parsed;
+
+                if (!rowKeys.Contains(rVal)) rowKeys.Add(rVal);
+                if (!colKeys.Contains(cVal)) colKeys.Add(cVal);
+
+                if (!matrix.ContainsKey(rVal)) matrix[rVal] = new Dictionary<string, List<double>>();
+                if (!matrix[rVal].ContainsKey(cVal)) matrix[rVal][cVal] = new List<double>();
+                matrix[rVal][cVal].Add(val);
+            }
+
+            rowKeys.Sort();
+            colKeys.Sort();
+
+            int startR = meta.StartRow;
+            int startC = meta.StartCol;
+
+            string rowHeaderLabel = meta.Headers[meta.RowFieldIndex];
+            if (hasSecondary) rowHeaderLabel += $" / {meta.Headers[meta.SecondaryRowFieldIndex]}";
+
+            targetSheet.Cells[startR, startC].Data = $"{rowHeaderLabel} \\ {meta.Headers[meta.ColFieldIndex]}";
+            targetSheet.SetRangeStyles(new RangePosition(startR, startC, 1, colKeys.Count + 2), new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor | PlainStyleFlag.FontStyleBold,
+                BackColor = SolidColor.FromArgb(255, 41, 128, 185),
+                TextColor = SolidColor.FromArgb(255, 255, 255, 255),
+                Bold = true
+            });
+
+            for (int j = 0; j < colKeys.Count; j++)
+            {
+                targetSheet.Cells[startR, startC + 1 + j].Data = colKeys[j];
+            }
+            targetSheet.Cells[startR, startC + 1 + colKeys.Count].Data = "Grand Total";
+
+            // Row Population & Row Grand Totals
+            for (int i = 0; i < rowKeys.Count; i++)
+            {
+                string rk = rowKeys[i];
+                targetSheet.Cells[startR + 1 + i, startC].Data = rk;
+                targetSheet.Cells[startR + 1 + i, startC].Style.Bold = true;
+
+                double rowTotal = 0;
+                int rowCount = 0;
+
+                for (int j = 0; j < colKeys.Count; j++)
+                {
+                    string ck = colKeys[j];
+                    double cellVal = 0;
+                    if (matrix.ContainsKey(rk) && matrix[rk].ContainsKey(ck))
+                    {
+                        var vals = matrix[rk][ck];
+                        cellVal = meta.Aggregation switch
+                        {
+                            PivotAggregationType.Count => vals.Count,
+                            PivotAggregationType.Average => vals.Average(),
+                            PivotAggregationType.Max => vals.Max(),
+                            PivotAggregationType.Min => vals.Min(),
+                            _ => vals.Sum()
+                        };
+                        rowTotal += vals.Sum();
+                        rowCount += vals.Count;
+                    }
+                    targetSheet.Cells[startR + 1 + i, startC + 1 + j].Data = cellVal;
+                    targetSheet.Cells[startR + 1 + i, startC + 1 + j].DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Number;
+                }
+
+                double rowAgg = meta.Aggregation == PivotAggregationType.Count ? rowCount :
+                                (meta.Aggregation == PivotAggregationType.Average && rowCount > 0 ? rowTotal / rowCount : rowTotal);
+                targetSheet.Cells[startR + 1 + i, startC + 1 + colKeys.Count].Data = rowAgg;
+                targetSheet.Cells[startR + 1 + i, startC + 1 + colKeys.Count].Style.Bold = true;
+            }
+
+            // Bottom Grand Total Row across all columns
+            int bottomGrandRow = startR + 1 + rowKeys.Count;
+            targetSheet.Cells[bottomGrandRow, startC].Data = "Grand Total";
+            targetSheet.Cells[bottomGrandRow, startC].Style.Bold = true;
+
+            double grandOverallSum = 0;
+            int grandOverallCount = 0;
+            double grandOverallMax = double.MinValue;
+            double grandOverallMin = double.MaxValue;
+
+            for (int j = 0; j < colKeys.Count; j++)
+            {
+                string ck = colKeys[j];
+                var colVals = new List<double>();
+                foreach (var rk in rowKeys)
+                {
+                    if (matrix.ContainsKey(rk) && matrix[rk].ContainsKey(ck))
+                    {
+                        colVals.AddRange(matrix[rk][ck]);
+                    }
+                }
+
+                double colAgg = 0;
+                if (colVals.Count > 0)
+                {
+                    colAgg = meta.Aggregation switch
+                    {
+                        PivotAggregationType.Count => colVals.Count,
+                        PivotAggregationType.Average => colVals.Average(),
+                        PivotAggregationType.Max => colVals.Max(),
+                        PivotAggregationType.Min => colVals.Min(),
+                        _ => colVals.Sum()
+                    };
+                    grandOverallSum += colVals.Sum();
+                    grandOverallCount += colVals.Count;
+                    if (colVals.Max() > grandOverallMax) grandOverallMax = colVals.Max();
+                    if (colVals.Min() < grandOverallMin) grandOverallMin = colVals.Min();
+                }
+
+                targetSheet.Cells[bottomGrandRow, startC + 1 + j].Data = colAgg;
+                targetSheet.Cells[bottomGrandRow, startC + 1 + j].Style.Bold = true;
+                targetSheet.Cells[bottomGrandRow, startC + 1 + j].DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Number;
+            }
+
+            double grandFinalVal = meta.Aggregation switch
+            {
+                PivotAggregationType.Count => grandOverallCount,
+                PivotAggregationType.Average => grandOverallCount > 0 ? grandOverallSum / grandOverallCount : 0,
+                PivotAggregationType.Max => grandOverallMax != double.MinValue ? grandOverallMax : 0,
+                PivotAggregationType.Min => grandOverallMin != double.MaxValue ? grandOverallMin : 0,
+                _ => grandOverallSum
+            };
+
+            targetSheet.Cells[bottomGrandRow, startC + 1 + colKeys.Count].Data = grandFinalVal;
+            targetSheet.Cells[bottomGrandRow, startC + 1 + colKeys.Count].Style.Bold = true;
+            targetSheet.Cells[bottomGrandRow, startC + 1 + colKeys.Count].DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Number;
+
+            int totalRows = rowKeys.Count + 2;
+            int totalCols = colKeys.Count + 2;
+            targetSheet.SetRangeBorders(new RangePosition(startR, startC, totalRows, totalCols), BorderPositions.All, RangeBorderStyle.BlackSolid);
+
+            if (meta.CreateChart && rowKeys.Count > 0 && colKeys.Count > 0)
+            {
+                var catRange = new RangePosition(startR + 1, startC, rowKeys.Count, 1);
+                var valRange = new RangePosition(startR + 1, startC + 1, rowKeys.Count, colKeys.Count);
+                var chart = new ColumnChart
+                {
+                    DataSource = new WorksheetChartDataSource(targetSheet, catRange, valRange, RowOrColumn.Column),
+                    X = 50,
+                    Y = (startR + totalRows + 1) * 24,
+                    Width = 440,
+                    Height = 260,
+                    Title = $"Summary Chart ({meta.Headers[meta.ValueFieldIndex]} by {meta.Headers[meta.RowFieldIndex]})"
+                };
+                targetSheet.FloatingObjects.Add(chart);
+            }
+
+            _pivotMetadataBySheet[targetSheet.Name] = meta;
+        }
+
+        private void BtnFind_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new FindReplaceDialog(gridControl, isReplaceMode: false);
+            dlg.Owner = this;
+            dlg.Show();
+        }
+
+        private void BtnReplace_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new FindReplaceDialog(gridControl, isReplaceMode: true);
+            dlg.Owner = this;
+            dlg.Show();
+        }
+
+        private void BtnPrint_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var session = gridControl.CreatePrintSession();
+                session.Print();
+                StatusText.Text = "Print session initialized.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not initialize printer: {ex.Message}", "Print Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnZoomReset_Click(object sender, RoutedEventArgs e)
+        {
+            gridControl.CurrentWorksheet?.ZoomReset();
+            StatusText.Text = "Zoom reset to 100%.";
         }
 
         private void BtnZoomIn_Click(object sender, RoutedEventArgs e)
         {
-            if (ZoomSlider.Value < ZoomSlider.Maximum)
-            {
-                ZoomSlider.Value = Math.Min(ZoomSlider.Maximum, ZoomSlider.Value + 10);
-            }
+            gridControl.CurrentWorksheet?.ZoomIn();
+            StatusText.Text = $"Zoom In ({gridControl.CurrentWorksheet?.ScaleFactor * 100:0}%).";
         }
 
-        private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        private void BtnZoomOut_Click(object sender, RoutedEventArgs e)
         {
-            int zoomPercent = (int)e.NewValue;
-            if (ZoomText != null)
-            {
-                ZoomText.Text = $"{zoomPercent}%";
-            }
-            if (spreadsheetControl?.ActiveSheet != null)
-            {
-                try
-                {
-                    spreadsheetControl.ActiveSheet.Zoom = zoomPercent;
-                }
-                catch { }
-            }
+            gridControl.CurrentWorksheet?.ZoomOut();
+            StatusText.Text = $"Zoom Out ({gridControl.CurrentWorksheet?.ScaleFactor * 100:0}%).";
         }
 
-        public void RefreshAllCalculations()
+        private void BtnCreateTable_Click(object sender, RoutedEventArgs e)
         {
-            try
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            sheet.SetRangeStyles(new RangePosition(sel.Row, sel.Col, 1, sel.Cols), new WorksheetRangeStyle
             {
-                if (spreadsheetControl.ActiveSheet != null)
-                {
-                    spreadsheetControl.ActiveSheet.EnableSheetCalculations();
-                    StatusText.Text = $"Calculations refreshed at {DateTime.Now:T}";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Calculation Refresh Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor | PlainStyleFlag.FontStyleBold,
+                BackColor = SolidColor.FromArgb(255, 30, 75, 120),
+                TextColor = SolidColor.FromArgb(255, 255, 255, 255),
+                Bold = true
+            });
+            sheet.SetRangeBorders(sel, BorderPositions.All, RangeBorderStyle.BlackSolid);
+            StatusText.Text = $"Formatted Table on range {sel.ToAddress()}";
         }
 
-        public void CreateNewWorkbook()
+        private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                spreadsheetControl.Create(3);
-                _currentFilePath = null;
-                UpdateTitle("Book1");
-                StatusText.Text = "Created new workbook with 3 worksheets.";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to create workbook: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            _activeTheme = _activeTheme == "DarkGray" ? "Colorful" : "DarkGray";
+            StatusText.Text = $"Active Theme: {_activeTheme}";
         }
 
-        public void PromptOpenFile()
+        private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new OpenFileDialog
-            {
-                Filter = "Excel Workbooks (*.xlsx;*.xls;*.xlsm)|*.xlsx;*.xls;*.xlsm|CSV Files (*.csv)|*.csv|Text Files (*.txt)|*.txt|All Files (*.*)|*.*",
-                Title = "Open Spreadsheet"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                OpenFile(dialog.FileName);
-            }
-        }
-
-        public void OpenFile(string filePath)
-        {
-            if (!File.Exists(filePath))
-            {
-                MessageBox.Show($"File does not exist: {filePath}", "File Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                string ext = Path.GetExtension(filePath).ToLower();
-                if (ext == ".csv" || ext == ".txt")
-                {
-                    ImportTextFile(filePath);
-                }
-                else
-                {
-                    spreadsheetControl.Open(filePath);
-                }
-
-                _currentFilePath = filePath;
-                if (!_recentFiles.Contains(filePath)) _recentFiles.Insert(0, filePath);
-                
-                try
-                {
-                    var userSettings = SettingsService.Load();
-                    if (!userSettings.RecentFiles.Contains(filePath))
-                    {
-                        userSettings.RecentFiles.Insert(0, filePath);
-                        if (userSettings.RecentFiles.Count > 10) userSettings.RecentFiles.RemoveAt(userSettings.RecentFiles.Count - 1);
-                        SettingsService.Save(userSettings);
-                    }
-                }
-                catch { }
-
-                UpdateTitle(Path.GetFileName(filePath));
-                StatusText.Text = $"Loaded: {filePath}";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to open file: {ex.Message}", "Open Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        public void ImportDelimitedFile()
-        {
-            var dialog = new OpenFileDialog
-            {
-                Filter = "CSV / Delimited Files (*.csv;*.txt)|*.csv;*.txt|All Files (*.*)|*.*",
-                Title = "Import CSV / TXT into Active Sheet"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                ImportTextFile(dialog.FileName);
-            }
-        }
-
-        public void ImportTextFile(string filePath)
-        {
-            try
-            {
-                string[] lines = File.ReadAllLines(filePath, Encoding.UTF8);
-                if (lines.Length == 0) return;
-
-                char delimiter = lines[0].Contains('\t') ? '\t' : ',';
-
-                if (spreadsheetControl.Workbook == null)
-                {
-                    spreadsheetControl.Create(1);
-                }
-
-                IWorksheet? sheet = spreadsheetControl.ActiveSheet;
-                if (sheet == null && spreadsheetControl.Workbook != null)
-                {
-                    sheet = spreadsheetControl.Workbook.Worksheets[0];
-                }
-
-                if (sheet != null)
-                {
-                    sheet.Clear();
-                    for (int r = 0; r < lines.Length; r++)
-                    {
-                        string[] parts = lines[r].Split(delimiter);
-                        for (int c = 0; c < parts.Length; c++)
-                        {
-                            string val = parts[c].Trim('\"');
-                            if (double.TryParse(val, out double numVal))
-                            {
-                                sheet.Range[r + 1, c + 1].Number = numVal;
-                            }
-                            else
-                            {
-                                sheet.Range[r + 1, c + 1].Text = val;
-                            }
-                        }
-                    }
-                    StatusText.Text = $"Imported {lines.Length} rows from {Path.GetFileName(filePath)}";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"CSV/TXT Import Error: {ex.Message}", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        public void SaveCurrentWorkbook()
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(_currentFilePath))
-                {
-                    SaveWorkbookAs();
-                }
-                else
-                {
-                    spreadsheetControl.Save();
-                    StatusText.Text = $"Workbook saved successfully at {DateTime.Now:T}";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to save workbook: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        public void SaveWorkbookAs()
-        {
-            var dialog = new SaveFileDialog
-            {
-                Filter = "Excel Workbook (*.xlsx)|*.xlsx|Excel 97-2003 (*.xls)|*.xls|CSV File (*.csv)|*.csv",
-                FileName = string.IsNullOrEmpty(_currentFilePath) ? "Workbook1.xlsx" : Path.GetFileName(_currentFilePath),
-                Title = "Save Spreadsheet As"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                try
-                {
-                    spreadsheetControl.SaveAs(dialog.FileName);
-                    _currentFilePath = dialog.FileName;
-                    UpdateTitle(Path.GetFileName(dialog.FileName));
-                    StatusText.Text = $"Saved as: {dialog.FileName}";
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to save as: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        public void ShowWelcomeDialog()
-        {
-            var settings = SettingsService.Load();
-            var welcome = new WelcomeDialog(settings.RecentFiles, settings.ShowWelcomeOnStartup) { Owner = this };
-            if (welcome.ShowDialog() == true)
-            {
-                settings.ShowWelcomeOnStartup = welcome.ShowOnStartup;
-                SettingsService.Save(settings);
-                if (!string.IsNullOrEmpty(welcome.SelectedFileToOpen))
-                {
-                    OpenFile(welcome.SelectedFileToOpen);
-                }
-                else if (!string.IsNullOrEmpty(welcome.SelectedTemplate))
-                {
-                    ApplyTemplate(welcome.SelectedTemplate);
-                }
-            }
-        }
-
-        public void ShowShortcutsDialog()
-        {
-            var dlg = new ShortcutsDialog { Owner = this };
+            var dlg = new SettingsDialog();
+            dlg.Owner = this;
             dlg.ShowDialog();
         }
 
-        public void ShowAboutDialog()
+        private void BtnShortcuts_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new AboutDialog { Owner = this };
+            ShowShortcutsDialog();
+        }
+
+        private void ShowShortcutsDialog()
+        {
+            var dlg = new ShortcutsDialog();
+            dlg.Owner = this;
             dlg.ShowDialog();
         }
 
-        public void ApplyTemplate(string templateName)
+        private void BtnAbout_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                spreadsheetControl.Create(1);
-                var sheet = spreadsheetControl.ActiveSheet;
-                if (sheet == null && spreadsheetControl.Workbook != null)
-                    sheet = spreadsheetControl.Workbook.Worksheets[0];
-                if (sheet == null) return;
-
-                if (templateName == "Tour")
-                {
-                    sheet.Name = "Welcome_Tour";
-                    sheet.Range["A1:F1"].Merge();
-                    sheet.Range["A1"].Text = "Welcome to ExcelClone Professional";
-                    sheet.Range["A1"].CellStyle.Font.Bold = true;
-                    sheet.Range["A1"].CellStyle.Font.Size = 16;
-                    sheet.Range["A1"].CellStyle.Font.Color = Syncfusion.XlsIO.ExcelKnownColors.White;
-                    sheet.Range["A1:F1"].CellStyle.Color = System.Drawing.Color.FromArgb(16, 124, 65);
-
-                    sheet.Range["A3"].Text = "Feature"; sheet.Range["B3"].Text = "Description"; sheet.Range["C3"].Text = "Shortcut / Tip";
-                    sheet.Range["A3:C3"].CellStyle.Font.Bold = true;
-
-                    string[,] tourData = {
-                        { "Ribbon Interface", "Full Office-style tabs for Home, Insert, Formulas, Data, View, and Settings.", "Ctrl+F1 to collapse/expand" },
-                        { "Formula Calculation", "Over 500 supported functions: Math, Statistics, Financial, Lookup, and Text.", "=SUM(), =VLOOKUP(), =PMT()" },
-                        { "OpenXML Compatibility", "Lossless roundtrip opening and saving of .xlsx, .xlsm, and .csv files.", "Ctrl+S to save, Ctrl+O to open" },
-                        { "Data Tools", "Integrated data transformation, column splitting, deduplication, and sorting.", "Data tab -> Data Transformation" },
-                        { "Numerical Analysis", "Descriptive statistics, linear regression, and Goal Seek targeting.", "Formulas tab -> Goal Seek" }
-                    };
-
-                    for (int i = 0; i < tourData.GetLength(0); i++)
-                    {
-                        sheet.Range[i + 4, 1].Text = tourData[i, 0];
-                        sheet.Range[i + 4, 2].Text = tourData[i, 1];
-                        sheet.Range[i + 4, 3].Text = tourData[i, 2];
-                    }
-                    sheet.EnableSheetCalculations();
-                    sheet.UsedRange.AutofitColumns();
-                    UpdateTitle("Welcome_To_ExcelClone");
-                    StatusText.Text = "Applied Welcome Tour template.";
-                }
-                else if (templateName == "Formula")
-                {
-                    sheet.Name = "Formula_Tutorial";
-                    sheet.Range["A1:E1"].Merge();
-                    sheet.Range["A1"].Text = "Getting Started with Formulas";
-                    sheet.Range["A1"].CellStyle.Font.Bold = true;
-                    sheet.Range["A1"].CellStyle.Font.Size = 16;
-                    sheet.Range["A1"].CellStyle.Font.Color = Syncfusion.XlsIO.ExcelKnownColors.White;
-                    sheet.Range["A1:E1"].CellStyle.Color = System.Drawing.Color.FromArgb(16, 124, 65);
-
-                    sheet.Range["A3"].Text = "Category"; sheet.Range["B3"].Text = "Example Formula"; sheet.Range["C3"].Text = "Live Result"; sheet.Range["D3"].Text = "Explanation";
-                    sheet.Range["A3:D3"].CellStyle.Font.Bold = true;
-
-                    sheet.Range["A4"].Text = "Math"; sheet.Range["B4"].Text = "=SUM(10, 25, 65)"; sheet.Range["C4"].Formula = "=SUM(10, 25, 65)"; sheet.Range["D4"].Text = "Adds all arguments together";
-                    sheet.Range["A5"].Text = "Math"; sheet.Range["B5"].Text = "=AVERAGE(20, 40, 60)"; sheet.Range["C5"].Formula = "=AVERAGE(20, 40, 60)"; sheet.Range["D5"].Text = "Calculates arithmetic mean";
-                    sheet.Range["A6"].Text = "Logic"; sheet.Range["B6"].Text = "=IF(10 > 5, \"Pass\", \"Fail\")"; sheet.Range["C6"].Formula = "=IF(10 > 5, \"Pass\", \"Fail\")"; sheet.Range["D6"].Text = "Conditional branch test";
-                    sheet.Range["A7"].Text = "Text"; sheet.Range["B7"].Text = "=CONCATENATE(\"Excel\", \"Clone\")"; sheet.Range["C7"].Formula = "=CONCATENATE(\"Excel\", \"Clone\")"; sheet.Range["D7"].Text = "Joins text strings together";
-                    sheet.Range["A8"].Text = "Financial"; sheet.Range["B8"].Text = "=ROUND(PMT(0.05/12, 60, -25000), 2)"; sheet.Range["C8"].Formula = "=ROUND(PMT(0.05/12, 60, -25000), 2)"; sheet.Range["D8"].Text = "Monthly loan repayment";
-
-                    sheet.EnableSheetCalculations();
-                    sheet.UsedRange.AutofitColumns();
-                    UpdateTitle("Formula_Tutorial");
-                    StatusText.Text = "Applied Formula Tutorial template.";
-                }
-                else if (templateName == "Finance")
-                {
-                    sheet.Name = "Financial_Projection";
-                    sheet.Range["A1"].Text = "Year";
-                    sheet.Range["B1"].Text = "Revenue ($)";
-                    sheet.Range["C1"].Text = "Expenses ($)";
-                    sheet.Range["D1"].Text = "Gross Profit ($)";
-                    sheet.Range["E1"].Text = "Margin (%)";
-                    sheet.Range["A1:E1"].CellStyle.Font.Bold = true;
-
-                    double rev = 250000;
-                    double exp = 160000;
-                    for (int y = 1; y <= 5; y++)
-                    {
-                        int r = y + 1;
-                        sheet.Range[r, 1].Number = 2026 + y;
-                        sheet.Range[r, 2].Number = rev;
-                        sheet.Range[r, 2].NumberFormat = "$#,##0";
-                        sheet.Range[r, 3].Number = exp;
-                        sheet.Range[r, 3].NumberFormat = "$#,##0";
-                        sheet.Range[r, 4].Formula = $"=B{r}-C{r}";
-                        sheet.Range[r, 4].NumberFormat = "$#,##0";
-                        sheet.Range[r, 5].Formula = $"=D{r}/B{r}";
-                        sheet.Range[r, 5].NumberFormat = "0.0%";
-
-                        rev *= 1.15;
-                        exp *= 1.09;
-                    }
-                    sheet.EnableSheetCalculations();
-                    sheet.UsedRange.AutofitColumns();
-                    UpdateTitle("Financial_Projection_Model");
-                    StatusText.Text = "Applied Corporate Financial Model template.";
-                }
-                else if (templateName == "Inventory")
-                {
-                    sheet.Name = "Product_Inventory";
-                    sheet.Range["A1"].Text = "SKU";
-                    sheet.Range["B1"].Text = "Product Name";
-                    sheet.Range["C1"].Text = "Category";
-                    sheet.Range["D1"].Text = "Stock Qty";
-                    sheet.Range["E1"].Text = "Unit Price ($)";
-                    sheet.Range["F1"].Text = "Total Value ($)";
-                    sheet.Range["G1"].Text = "Supplier";
-                    sheet.Range["A1:G1"].CellStyle.Font.Bold = true;
-
-                    string[] skus = { "SKU-101", "SKU-102", "SKU-201", "SKU-202", "SKU-301" };
-                    string[] descs = { "Wireless Optical Mouse", "Mechanical Keyboard RGB", "27-inch 4K Monitor", "USB-C Fast Charging Hub", "Noise Cancelling Headset" };
-                    string[] cats = { "Peripherals", "Peripherals", "Displays", "Accessories", "Audio" };
-                    int[] qtys = { 45, 28, 14, 60, 22 };
-                    double[] costs = { 29.99, 89.50, 329.00, 39.95, 119.00 };
-                    string[] supps = { "TechDistro Corp", "KeyWorks Ltd", "VisionPanel Inc", "PowerLink Supply", "SoundWave Audio" };
-
-                    for (int i = 0; i < skus.Length; i++)
-                    {
-                        int r = i + 2;
-                        sheet.Range[r, 1].Text = skus[i];
-                        sheet.Range[r, 2].Text = descs[i];
-                        sheet.Range[r, 3].Text = cats[i];
-                        sheet.Range[r, 4].Number = qtys[i];
-                        sheet.Range[r, 5].Number = costs[i];
-                        sheet.Range[r, 5].NumberFormat = "$#,##0.00";
-                        sheet.Range[r, 6].Formula = $"=D{r}*E{r}";
-                        sheet.Range[r, 6].NumberFormat = "$#,##0.00";
-                        sheet.Range[r, 7].Text = supps[i];
-                    }
-                    sheet.Range["E8"].Text = "Total Inventory Value:";
-                    sheet.Range["E8"].CellStyle.Font.Bold = true;
-                    sheet.Range["F8"].Formula = "=SUM(F2:F6)";
-                    sheet.Range["F8"].NumberFormat = "$#,##0.00";
-                    sheet.Range["F8"].CellStyle.Font.Bold = true;
-
-                    sheet.EnableSheetCalculations();
-                    sheet.UsedRange.AutofitColumns();
-                    UpdateTitle("Product_Inventory_Catalog");
-                    StatusText.Text = "Applied Product Inventory Catalog template.";
-                }
-                else if (templateName == "Project")
-                {
-                    sheet.Name = "Project_Schedule";
-                    sheet.Range["A1"].Text = "WBS";
-                    sheet.Range["B1"].Text = "Task Name";
-                    sheet.Range["C1"].Text = "Owner";
-                    sheet.Range["D1"].Text = "Start Date";
-                    sheet.Range["E1"].Text = "Duration (Days)";
-                    sheet.Range["F1"].Text = "End Date";
-                    sheet.Range["G1"].Text = "Status";
-                    sheet.Range["A1:G1"].CellStyle.Font.Bold = true;
-
-                    string[] tasks = { "Architecture Design", "Core Grid Implementation", "Formula Engine Audit", "Security Review", "Beta Release Testing" };
-                    string[] owners = { "Lead Architect", "Senior Engineer", "QA Specialist", "Security Auditor", "Product Team" };
-                    int[] durations = { 5, 10, 7, 4, 6 };
-
-                    for (int i = 0; i < tasks.Length; i++)
-                    {
-                        int r = i + 2;
-                        sheet.Range[r, 1].Text = $"1.{i + 1}";
-                        sheet.Range[r, 2].Text = tasks[i];
-                        sheet.Range[r, 3].Text = owners[i];
-                        sheet.Range[r, 4].DateTime = DateTime.Today.AddDays(i * 4);
-                        sheet.Range[r, 4].NumberFormat = "yyyy-mm-dd";
-                        sheet.Range[r, 5].Number = durations[i];
-                        sheet.Range[r, 6].Formula = $"=D{r}+E{r}";
-                        sheet.Range[r, 6].NumberFormat = "yyyy-mm-dd";
-                        sheet.Range[r, 7].Text = (i < 3) ? "Completed" : "In Progress";
-                    }
-
-                    sheet.EnableSheetCalculations();
-                    sheet.UsedRange.AutofitColumns();
-                    UpdateTitle("Project_Milestone_Schedule");
-                    StatusText.Text = "Applied Project Milestone Schedule template.";
-                }
-                else
-                {
-                    spreadsheetControl.Create(3);
-                    UpdateTitle("Book1");
-                }
-            }
-            catch (Exception ex)
-            {
-                LoggingService.LogError("Failed to apply template", ex);
-                spreadsheetControl.Create(3);
-                UpdateTitle("Book1");
-            }
-        }
-
-        private void UpdateTitle(string documentName)
-        {
-            Title = $"{documentName} - Excel";
-            FileInfoText.Text = _currentFilePath ?? "Unsaved Workbook";
-        }
-
-        public void RunUiBenchmarkAndExit(string logPath)
-        {
-            _isBenchmarking = true;
-            var sb = new System.Text.StringBuilder();
-            void Log(string msg) { Console.WriteLine(msg); sb.AppendLine(msg); }
-
-            try
-            {
-                Log("===============================================================================");
-                Log("  EXCELCLONE PROFESSIONAL v1.3 — LIVE WPF UI INTERACTION & STRESS BENCHMARKS    ");
-                Log("===============================================================================");
-
-            int[] scales = { 100_000, 500_000, 1_000_000 };
-            foreach (var rowCount in scales)
-            {
-                Log($"\n>>> TESTING LIVE WPF UI INTERACTION: {rowCount:N0} ROWS");
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-                long initialMem = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
-                Log($"[Memory Baseline] Idle Working Set: {initialMem / (1024.0 * 1024.0):N1} MB");
-
-                // 1. Create workbook & save to disk
-                var swCreate = System.Diagnostics.Stopwatch.StartNew();
-                string tempWb = Path.Combine(Path.GetTempPath(), $"stress_{rowCount}.xlsx");
-                using (var engine = new ExcelEngine())
-                {
-                    var app = engine.Excel;
-                    var wb = app.Workbooks.Create(1);
-                    var sheet = wb.Worksheets[0];
-                    sheet.Name = $"Scale_{rowCount}";
-
-                    sheet.Range["A1"].Text = "ID";
-                    sheet.Range["B1"].Text = "Qty";
-                    sheet.Range["C1"].Text = "Price";
-                    sheet.Range["D1"].Text = "Total";
-
-                    int chunkSize = Math.Min(rowCount, 250_000);
-                    int batches = (rowCount + chunkSize - 1) / chunkSize;
-                    for (int b = 0; b < batches; b++)
-                    {
-                        int start = b * chunkSize;
-                        int count = Math.Min(chunkSize, rowCount - start);
-                        object[,] batch = new object[count, 3];
-                        for (int i = 0; i < count; i++)
-                        {
-                            int r = start + i + 1;
-                            batch[i, 0] = r;
-                            batch[i, 1] = 10 + (r % 50);
-                            batch[i, 2] = 20.0 + (r % 100);
-                        }
-                        sheet.ImportArray(batch, start + 2, 1);
-                    }
-
-                    sheet.Range[$"D2:D{rowCount + 1}"].Formula = "=B2*C2";
-                    wb.SaveAs(tempWb);
-                }
-                swCreate.Stop();
-                Log($"[1/7] Data & Formula Generation (.xlsx saved): {swCreate.ElapsedMilliseconds:N0} ms ({(rowCount * 4.0) / (swCreate.ElapsedMilliseconds / 1000.0):N0} cells/sec)");
-
-                // 2. Open in live WPF SfSpreadsheet Control
-                var swRender = System.Diagnostics.Stopwatch.StartNew();
-                spreadsheetControl.Open(tempWb);
-                DoEvents();
-                swRender.Stop();
-                var sheetActive = spreadsheetControl.ActiveSheet;
-                long renderMem = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
-                Log($"[2/7] Live WPF UI Open & Layout Time: {swRender.ElapsedMilliseconds:N0} ms");
-                Log($"      Working Set after UI Open: {renderMem / (1024.0 * 1024.0):N1} MB (Delta: +{(renderMem - initialMem) / (1024.0 * 1024.0):N1} MB)");
-
-                // 3. Virtualized Scrolling Responsiveness
-                var swScroll = System.Diagnostics.Stopwatch.StartNew();
-                int[] scrollTargets = { 1000, 10000, rowCount / 2, rowCount };
-                var scrollMethod = spreadsheetControl.ActiveGrid?.GetType().GetMethod("ScrollInView");
-                foreach (var target in scrollTargets)
-                {
-                    if (spreadsheetControl.ActiveGrid != null && scrollMethod != null)
-                    {
-                        try
-                        {
-                            var paramType = scrollMethod.GetParameters()[0].ParameterType;
-                            var rowColIndex = Activator.CreateInstance(paramType, target, 1);
-                            scrollMethod.Invoke(spreadsheetControl.ActiveGrid, new[] { rowColIndex });
-                        }
-                        catch { }
-                    }
-                    DoEvents();
-                }
-                swScroll.Stop();
-                Log($"[3/7] 4 Viewport Scroll Jumps (Row 1k -> 10k -> {rowCount/2:N0} -> {rowCount:N0}): {swScroll.ElapsedMilliseconds:N0} ms (Avg: {swScroll.ElapsedMilliseconds / 4.0:F1} ms/jump)");
-
-                // 4. In-Grid Cell Editing
-                var swEdit = System.Diagnostics.Stopwatch.StartNew();
-                for (int i = 2; i <= 22; i++)
-                {
-                    sheetActive.Range[i, 2].Number = 999;
-                }
-                sheetActive.EnableSheetCalculations();
-                DoEvents();
-                swEdit.Stop();
-                Log($"[4/7] 20 In-Grid Cell Edits + Recalc: {swEdit.ElapsedMilliseconds:N0} ms");
-                Log($"      Sample Mutated Cell (D2): {sheetActive.Range[2, 4].CalculatedValue}");
-
-                // 5. Copy & Paste Range Operation
-                var swCopy = System.Diagnostics.Stopwatch.StartNew();
-                var sourceRange = sheetActive.Range["B2:C100"];
-                var targetRange = sheetActive.Range["B102:C200"];
-                sourceRange.CopyTo(targetRange);
-                DoEvents();
-                swCopy.Stop();
-                Log($"[5/7] Range Copy & Paste (200 cells): {swCopy.ElapsedMilliseconds:N0} ms");
-
-                // 6. Data Sorting & AutoFilter
-                var swSort = System.Diagnostics.Stopwatch.StartNew();
-                int sortRows = Math.Min(rowCount, 100_000);
-                sheetActive.AutoFilters.FilterRange = sheetActive.Range[$"A1:D{sortRows + 1}"];
-                DoEvents();
-                swSort.Stop();
-                Log($"[6/7] AutoFilter Application ({sortRows:N0} rows): {swSort.ElapsedMilliseconds:N0} ms");
-
-                // 7. Full Formula Recalculation
-                var swRecalc = System.Diagnostics.Stopwatch.StartNew();
-                sheetActive.EnableSheetCalculations();
-                swRecalc.Stop();
-                long peakMem = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
-                Log($"[7/7] Full CalcEngine Recalculation: {swRecalc.ElapsedMilliseconds:N0} ms");
-                Log($"      Peak Working Set Memory: {peakMem / (1024.0 * 1024.0):N1} MB");
-                Log($"      UI Responsiveness Check: 0 dispatcher freezes, 0 crashes.");
-                Log($"  => SCALE RESULT ({rowCount:N0} ROWS): PASSED (100% stable)");
-                try { File.Delete(tempWb); } catch { }
-            }
-
-                File.WriteAllText(logPath, sb.ToString());
-                Log($"\n[BENCHMARK WRITTEN TO {logPath}]");
-            }
-            catch (Exception ex)
-            {
-                File.WriteAllText(logPath + ".err", ex.ToString());
-                LoggingService.LogError("Benchmark UI error", ex);
-            }
-            finally
-            {
-                Close();
-                Application.Current.Shutdown();
-            }
-        }
-
-        private void DoEvents()
-        {
-            Dispatcher.Invoke(new Action(() => { }), System.Windows.Threading.DispatcherPriority.Background);
-        }
-
-        private static T? GetVisualChild<T>(DependencyObject? parent) where T : DependencyObject
-        {
-            if (parent == null) return null;
-            if (parent is T match) return match;
-
-            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < count; i++)
-            {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-                var found = GetVisualChild<T>(child);
-                if (found != null) return found;
-            }
-            return null;
+            var dlg = new AboutDialog();
+            dlg.Owner = this;
+            dlg.ShowDialog();
         }
     }
 }

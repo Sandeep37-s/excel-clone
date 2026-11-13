@@ -1,0 +1,54 @@
+<Window x:Class="ExcelClone.FindReplaceDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Find and Replace"
+        Height="270" Width="460"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F5F6F7">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="100"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Find What -->
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Find what:" VerticalAlignment="Center" Margin="0,4"/>
+        <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtFind" Height="26" Margin="0,4" VerticalContentAlignment="Center"/>
+
+        <!-- Replace With -->
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Replace with:" VerticalAlignment="Center" Margin="0,4"/>
+        <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtReplace" Height="26" Margin="0,4" VerticalContentAlignment="Center"/>
+
+        <!-- Options -->
+        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,8,0,0">
+            <CheckBox x:Name="ChkMatchCase" Content="Match case" Margin="0,2"/>
+            <CheckBox x:Name="ChkMatchEntire" Content="Match entire cell contents" Margin="0,2"/>
+            <StackPanel Orientation="Horizontal" Margin="0,4">
+                <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <RadioButton x:Name="RbSheet" Content="Active Sheet" IsChecked="True" Margin="0,0,8,0"/>
+                <RadioButton x:Name="RbWorkbook" Content="Entire Workbook"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Status Message -->
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" x:Name="TxtStatus"
+                   Foreground="#0066CC" VerticalAlignment="Center" FontWeight="SemiBold" TextWrapping="Wrap"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button x:Name="BtnFindNext" Content="Find Next" Width="85" Height="26" Margin="0,0,6,0" IsDefault="True" Click="BtnFindNext_Click"/>
+            <Button x:Name="BtnReplace" Content="Replace" Width="85" Height="26" Margin="0,0,6,0" Click="BtnReplace_Click"/>
+            <Button x:Name="BtnReplaceAll" Content="Replace All" Width="85" Height="26" Margin="0,0,6,0" Click="BtnReplaceAll_Click"/>
+            <Button x:Name="BtnClose" Content="Close" Width="75" Height="26" IsCancel="True" Click="BtnClose_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

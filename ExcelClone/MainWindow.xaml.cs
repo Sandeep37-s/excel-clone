@@ -37,6 +37,9 @@ namespace ExcelClone
                 Console.WriteLine($"Chart renderer setup note: {ex.Message}");
             }
 
+            // Explicitly connect ribbon to spreadsheet control so formatting commands bind to active cells
+            spreadsheetRibbon.SfSpreadsheet = spreadsheetControl;
+
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
             KeyDown += (s, e) =>
@@ -44,6 +47,26 @@ namespace ExcelClone
                 if (e.Key == System.Windows.Input.Key.F1)
                 {
                     ShowShortcutsDialog();
+                }
+                else if (e.Key == System.Windows.Input.Key.B && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+                {
+                    ToggleBoldOnSelection();
+                    e.Handled = true;
+                }
+                else if (e.Key == System.Windows.Input.Key.I && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+                {
+                    ToggleItalicOnSelection();
+                    e.Handled = true;
+                }
+                else if (e.Key == System.Windows.Input.Key.U && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+                {
+                    ToggleUnderlineOnSelection();
+                    e.Handled = true;
+                }
+                else if (e.Key == System.Windows.Input.Key.S && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+                {
+                    SaveCurrentWorkbook();
+                    e.Handled = true;
                 }
             };
             InitAutoSave();
@@ -989,6 +1012,84 @@ namespace ExcelClone
             {
                 sheet.RemovePanes();
                 StatusText.Text = "Panes unfrozen.";
+            }
+            catch { }
+        }
+
+        public void ToggleBoldOnSelection()
+        {
+            try
+            {
+                var sheet = spreadsheetControl.ActiveSheet;
+                var activeGrid = spreadsheetControl.ActiveGrid;
+                if (sheet == null || activeGrid == null) return;
+
+                var sel = activeGrid.SelectedRanges.ActiveRange;
+                int top = sel?.Top ?? activeGrid.CurrentCell.RowIndex;
+                int left = sel?.Left ?? activeGrid.CurrentCell.ColumnIndex;
+                int bottom = sel?.Bottom ?? top;
+                int right = sel?.Right ?? left;
+
+                if (top > 0 && left > 0)
+                {
+                    var range = sheet.Range[top, left, bottom, right];
+                    bool currentlyBold = range.CellStyle.Font.Bold;
+                    range.CellStyle.Font.Bold = !currentlyBold;
+                    activeGrid.InvalidateCells();
+                    StatusText.Text = range.CellStyle.Font.Bold ? "Applied Bold formatting." : "Removed Bold formatting.";
+                }
+            }
+            catch { }
+        }
+
+        public void ToggleItalicOnSelection()
+        {
+            try
+            {
+                var sheet = spreadsheetControl.ActiveSheet;
+                var activeGrid = spreadsheetControl.ActiveGrid;
+                if (sheet == null || activeGrid == null) return;
+
+                var sel = activeGrid.SelectedRanges.ActiveRange;
+                int top = sel?.Top ?? activeGrid.CurrentCell.RowIndex;
+                int left = sel?.Left ?? activeGrid.CurrentCell.ColumnIndex;
+                int bottom = sel?.Bottom ?? top;
+                int right = sel?.Right ?? left;
+
+                if (top > 0 && left > 0)
+                {
+                    var range = sheet.Range[top, left, bottom, right];
+                    bool currentlyItalic = range.CellStyle.Font.Italic;
+                    range.CellStyle.Font.Italic = !currentlyItalic;
+                    activeGrid.InvalidateCells();
+                    StatusText.Text = range.CellStyle.Font.Italic ? "Applied Italic formatting." : "Removed Italic formatting.";
+                }
+            }
+            catch { }
+        }
+
+        public void ToggleUnderlineOnSelection()
+        {
+            try
+            {
+                var sheet = spreadsheetControl.ActiveSheet;
+                var activeGrid = spreadsheetControl.ActiveGrid;
+                if (sheet == null || activeGrid == null) return;
+
+                var sel = activeGrid.SelectedRanges.ActiveRange;
+                int top = sel?.Top ?? activeGrid.CurrentCell.RowIndex;
+                int left = sel?.Left ?? activeGrid.CurrentCell.ColumnIndex;
+                int bottom = sel?.Bottom ?? top;
+                int right = sel?.Right ?? left;
+
+                if (top > 0 && left > 0)
+                {
+                    var range = sheet.Range[top, left, bottom, right];
+                    bool currentlyUnderlined = range.CellStyle.Font.Underline != ExcelUnderline.None;
+                    range.CellStyle.Font.Underline = currentlyUnderlined ? ExcelUnderline.None : ExcelUnderline.Single;
+                    activeGrid.InvalidateCells();
+                    StatusText.Text = (range.CellStyle.Font.Underline != ExcelUnderline.None) ? "Applied Underline formatting." : "Removed Underline formatting.";
+                }
             }
             catch { }
         }

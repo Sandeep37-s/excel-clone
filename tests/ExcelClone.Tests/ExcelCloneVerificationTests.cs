@@ -32,6 +32,9 @@ namespace ExcelClone.Tests
         [Fact]
         public void Test_StandAloneStartup_NoAuthRequirement()
         {
+            var props = typeof(Syncfusion.UI.Xaml.Spreadsheet.SfSpreadsheetRibbon).GetProperties().Select(p => p.Name).ToList();
+            Assert.Contains("SfSpreadsheet", props);
+
             // Verify default settings do not require authentication or network connection
             var settings = new UserSettings();
             Assert.Equal("Office2019DarkGray", settings.Theme);

@@ -23,7 +23,7 @@
         <!-- SfSpreadsheetRibbon provides full Excel-like ribbon (File/Home/Insert/Draw/PageLayout/Formulas/Data/Review/View/Help) -->
         <syncfusion:SfSpreadsheetRibbon Grid.Row="0"
                                         x:Name="spreadsheetRibbon"
-                                        DataContext="{Binding ElementName=spreadsheetControl}"
+                                        SfSpreadsheet="{Binding ElementName=spreadsheetControl}"
                                         Loaded="SpreadsheetRibbon_Loaded"/>
 
         <!-- Native SfSpreadsheet Control (Grid, Formula Bar, Sheet Tabs, Context Menus) -->

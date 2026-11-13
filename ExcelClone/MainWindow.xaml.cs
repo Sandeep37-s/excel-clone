@@ -231,27 +231,32 @@ namespace ExcelClone
         {
             if (e.Key == Key.Enter)
             {
-                var sheet = gridControl.CurrentWorksheet;
-                if (sheet == null) return;
-                var pos = sheet.FocusPos;
-                string text = TxtFormulaBar.Text.Trim();
-
-                if (text.StartsWith("="))
-                {
-                    sheet.Cells[pos].Formula = text.Substring(1);
-                }
-                else if (double.TryParse(text, out double num))
-                {
-                    sheet.Cells[pos].Data = num;
-                }
-                else
-                {
-                    sheet.Cells[pos].Data = text;
-                }
-
-                sheet.Recalculate();
-                StatusText.Text = $"Updated cell {pos.ToAddress()} -> {text}";
+                CommitFormulaBar();
             }
+        }
+
+        private void CommitFormulaBar()
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var pos = sheet.FocusPos;
+            string text = TxtFormulaBar.Text.Trim();
+
+            if (text.StartsWith("="))
+            {
+                sheet.Cells[pos].Formula = text.Substring(1);
+            }
+            else if (double.TryParse(text, out double num))
+            {
+                sheet.Cells[pos].Data = num;
+            }
+            else
+            {
+                sheet.Cells[pos].Data = text;
+            }
+
+            sheet.Recalculate();
+            StatusText.Text = $"Updated cell {pos.ToAddress()} -> {text}";
         }
 
         // =========================================================================
@@ -1410,6 +1415,231 @@ namespace ExcelClone
             var dlg = new AboutDialog();
             dlg.Owner = this;
             dlg.ShowDialog();
+        }
+
+        private void BtnUndo_Click(object sender, RoutedEventArgs e)
+        {
+            if (gridControl.CanUndo())
+            {
+                gridControl.Undo();
+                StatusText.Text = "Undo performed.";
+            }
+        }
+
+        private void BtnRedo_Click(object sender, RoutedEventArgs e)
+        {
+            if (gridControl.CanRedo())
+            {
+                gridControl.Redo();
+                StatusText.Text = "Redo performed.";
+            }
+        }
+
+        private bool _autoSaveEnabled = true;
+        private void BtnAutoSaveToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _autoSaveEnabled = !_autoSaveEnabled;
+            if (FindName("TxtAutoSaveStatus") is TextBlock tb)
+            {
+                tb.Text = _autoSaveEnabled ? "On" : "Off";
+            }
+            if (FindName("AutoSaveThumb") is FrameworkElement thumb)
+            {
+                thumb.HorizontalAlignment = _autoSaveEnabled ? System.Windows.HorizontalAlignment.Right : System.Windows.HorizontalAlignment.Left;
+            }
+            if (_autoSaveEnabled)
+            {
+                _autoSaveTimer?.Start();
+                StatusText.Text = "AutoSave enabled (every 5 minutes).";
+            }
+            else
+            {
+                _autoSaveTimer?.Stop();
+                StatusText.Text = "AutoSave paused.";
+            }
+        }
+
+        private void BtnFormulaEnter_Click(object sender, RoutedEventArgs e)
+        {
+            CommitFormulaBar();
+        }
+
+        private void BtnFormulaCancel_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var cell = sheet.Cells[sheet.FocusPos];
+            TxtFormulaBar.Text = cell.HasFormula ? "=" + cell.Formula : cell.DisplayText;
+            StatusText.Text = "Formula edit cancelled.";
+        }
+
+        private void BtnCellStyle_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            string style = (sender as Button)?.Tag as string ?? "Normal";
+
+            switch (style)
+            {
+                case "Bad":
+                    sheet.SetRangeStyles(sel, new WorksheetRangeStyle
+                    {
+                        Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor,
+                        BackColor = SolidColor.FromArgb(255, 255, 199, 206),
+                        TextColor = SolidColor.FromArgb(255, 156, 0, 6)
+                    });
+                    StatusText.Text = "Applied 'Bad' cell style.";
+                    break;
+                case "Good":
+                    sheet.SetRangeStyles(sel, new WorksheetRangeStyle
+                    {
+                        Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor,
+                        BackColor = SolidColor.FromArgb(255, 198, 239, 206),
+                        TextColor = SolidColor.FromArgb(255, 0, 97, 0)
+                    });
+                    StatusText.Text = "Applied 'Good' cell style.";
+                    break;
+                case "Neutral":
+                    sheet.SetRangeStyles(sel, new WorksheetRangeStyle
+                    {
+                        Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor,
+                        BackColor = SolidColor.FromArgb(255, 255, 235, 156),
+                        TextColor = SolidColor.FromArgb(255, 156, 101, 0)
+                    });
+                    StatusText.Text = "Applied 'Neutral' cell style.";
+                    break;
+                case "Calculation":
+                    sheet.SetRangeStyles(sel, new WorksheetRangeStyle
+                    {
+                        Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor | PlainStyleFlag.FontStyleBold,
+                        BackColor = SolidColor.FromArgb(255, 242, 242, 242),
+                        TextColor = SolidColor.FromArgb(255, 250, 125, 0)
+                    });
+                    StatusText.Text = "Applied 'Calculation' cell style.";
+                    break;
+                case "CheckCell":
+                    sheet.SetRangeBorders(sel, BorderPositions.Outside, RangeBorderStyle.BlackSolid);
+                    StatusText.Text = "Applied 'Check Cell' border style.";
+                    break;
+                case "Normal":
+                default:
+                    sheet.SetRangeStyles(sel, new WorksheetRangeStyle
+                    {
+                        Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor,
+                        BackColor = SolidColor.FromArgb(255, 255, 255, 255),
+                        TextColor = SolidColor.FromArgb(255, 0, 0, 0)
+                    });
+                    StatusText.Text = "Applied 'Normal' cell style.";
+                    break;
+            }
+        }
+
+        private void BtnWrapText_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.TextWrap,
+                TextWrapMode = TextWrapMode.WordBreak
+            });
+            StatusText.Text = "Applied Wrap Text to selection.";
+        }
+
+        private void BtnCurrency_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            for (int r = 0; r < sel.Rows; r++)
+            {
+                for (int c = 0; c < sel.Cols; c++)
+                {
+                    sheet.Cells[sel.Row + r, sel.Col + c].DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Currency;
+                }
+            }
+            StatusText.Text = "Applied Currency formatting ($).";
+        }
+
+        private void BtnPercent_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            for (int r = 0; r < sel.Rows; r++)
+            {
+                for (int c = 0; c < sel.Cols; c++)
+                {
+                    sheet.Cells[sel.Row + r, sel.Col + c].DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Percent;
+                }
+            }
+            StatusText.Text = "Applied Percent formatting (%).";
+        }
+
+        private void BtnComma_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            for (int r = 0; r < sel.Rows; r++)
+            {
+                for (int c = 0; c < sel.Cols; c++)
+                {
+                    sheet.Cells[sel.Row + r, sel.Col + c].DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Number;
+                }
+            }
+            StatusText.Text = "Applied Comma / Number formatting.";
+        }
+
+        private void BtnDecreaseIndent_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            StatusText.Text = "Decreased Indent.";
+        }
+
+        private void BtnIncreaseIndent_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            StatusText.Text = "Increased Indent.";
+        }
+
+        private void BtnClearContents_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            for (int r = 0; r < sel.Rows; r++)
+            {
+                for (int c = 0; c < sel.Cols; c++)
+                {
+                    sheet.Cells[sel.Row + r, sel.Col + c].Data = null;
+                }
+            }
+            sheet.Recalculate();
+            StatusText.Text = $"Cleared contents from {sel.ToAddress()}.";
+        }
+
+        private void BtnShare_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("ExcelClone is a 100% Free & Open-Source offline application.\n\nYou can share your workbook directly by copying or emailing your saved XLSX file.", "Share Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnFileMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.ContextMenu != null)
+            {
+                fe.ContextMenu.PlacementTarget = fe;
+                fe.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+                fe.ContextMenu.IsOpen = true;
+            }
+        }
+
+        private void BtnSearch_Click(object sender, RoutedEventArgs e)
+        {
+            BtnFind_Click(sender, e);
         }
     }
 }

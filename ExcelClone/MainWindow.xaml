@@ -5,224 +5,1420 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:rg="clr-namespace:unvell.ReoGrid;assembly=unvell.ReoGrid"
         mc:Ignorable="d"
-        Title="Book1 - Excel" Height="760" Width="1200"
+        Title="Book1 - Excel" Height="820" Width="1340"
         WindowStartupLocation="CenterScreen"
-        Background="#2B2B2B">
+        Background="#2B2B2B"
+        TextElement.FontFamily="Segoe UI"
+        TextElement.FontSize="11">
 
-    <Grid Background="#F3F3F3">
+    <Window.Resources>
+        <!-- Office Ribbon Colors -->
+        <SolidColorBrush x:Key="OfficeDarkChrome" Color="#2B2B2B"/>
+        <SolidColorBrush x:Key="OfficeRibbonSurface" Color="#D4D4D4"/>
+        <SolidColorBrush x:Key="OfficeRibbonBorder" Color="#BFBFBF"/>
+        <SolidColorBrush x:Key="OfficeGreen" Color="#107C41"/>
+        <SolidColorBrush x:Key="OfficeGreenHover" Color="#0E6B38"/>
+        <SolidColorBrush x:Key="OfficeTextDark" Color="#1A1A1A"/>
+        <SolidColorBrush x:Key="OfficeGroupLabel" Color="#555555"/>
+        <SolidColorBrush x:Key="OfficeDivider" Color="#B8B8B8"/>
+        <SolidColorBrush x:Key="OfficeHover" Color="#BEBEBE"/>
+        <SolidColorBrush x:Key="OfficePressed" Color="#A8A8A8"/>
+
+        <!-- Ribbon Big Button Style (Top Icon, Bottom Text) -->
+        <Style x:Key="RibbonBigBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="Height" Value="68"/>
+            <Setter Property="MinWidth" Value="44"/>
+            <Setter Property="Foreground" Value="#1A1A1A"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#BEBEBE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#A8A8A8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Ribbon Small Button Style (Icon Left, Text Right) -->
+        <Style x:Key="RibbonSmallBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Margin" Value="1,1"/>
+            <Setter Property="Height" Value="21"/>
+            <Setter Property="Foreground" Value="#1A1A1A"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#BEBEBE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#A8A8A8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Ribbon Icon-Only Button Style -->
+        <Style x:Key="RibbonIconBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="1,1"/>
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Foreground" Value="#1A1A1A"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#BEBEBE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#A8A8A8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Quick Access Toolbar Button Style -->
+        <Style x:Key="QatBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3E3E3E"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#505050"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Office TabControl & TabItem Template -->
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#E1E1E1"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="11,5,11,5"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="tabBorder" Background="{TemplateBinding Background}" CornerRadius="3,3,0,0" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="contentPresenter" ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="tabBorder" Property="Background" Value="#383838"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="tabBorder" Property="Background" Value="#D4D4D4"/>
+                                <Setter Property="Foreground" Value="#1A1A1A"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="#2B2B2B"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <!-- Tab Strip Header Row -->
+                            <Border Grid.Row="0" Background="#2B2B2B" Height="31">
+                                <TabPanel IsItemsHost="True" VerticalAlignment="Bottom" Margin="4,0,0,0"/>
+                            </Border>
+                            <!-- Active Tab Body -->
+                            <Border Grid.Row="1" Background="#D4D4D4" BorderBrush="#BFBFBF" BorderThickness="0,0,0,1" MinHeight="96">
+                                <ContentPresenter ContentSource="SelectedContent"/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#2B2B2B">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- Title / Menu Bar -->
-            <RowDefinition Height="Auto"/> <!-- Ribbon Tabs & Controls -->
-            <RowDefinition Height="Auto"/> <!-- Formula Bar -->
-            <RowDefinition Height="*"/>    <!-- Spreadsheet Grid & Drawing Canvas -->
-            <RowDefinition Height="Auto"/> <!-- Status Bar -->
+            <RowDefinition Height="Auto"/> <!-- Row 0: Excel 365 Title Bar -->
+            <RowDefinition Height="Auto"/> <!-- Row 1: Ribbon Bar -->
+            <RowDefinition Height="Auto"/> <!-- Row 2: Formula Bar Area -->
+            <RowDefinition Height="*"/>    <!-- Row 3: ReoGrid & InkCanvas -->
+            <RowDefinition Height="Auto"/> <!-- Row 4: Status Bar -->
         </Grid.RowDefinitions>
 
-        <!-- Top Header Ribbon -->
-        <Border Grid.Row="0" Background="#107C41" Padding="12,6">
+        <!-- ========================================================================= -->
+        <!-- ROW 0: EXCEL 365 TITLE BAR                                                -->
+        <!-- ========================================================================= -->
+        <Border Grid.Row="0" Background="#2B2B2B" Height="36" Padding="10,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⚡ ExcelClone" FontWeight="Bold" FontSize="14" Foreground="#FFFFFF" Margin="0,0,16,0"/>
-                    <TextBlock x:Name="HeaderTitle" Text="Book1.xlsx - Excel (Free &amp; Open Source Edition)" Foreground="#E0E0E0" FontSize="12" VerticalAlignment="Center"/>
+
+                <!-- Left Section: Excel Green Logo + AutoSave Toggle + Quick Access Toolbar -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Excel Green Icon Badge -->
+                    <Border Background="#107C41" Width="20" Height="20" CornerRadius="3" Margin="0,0,10,0" ToolTip="ExcelClone Open Source Edition">
+                        <TextBlock Text="X" Foreground="#FFFFFF" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- AutoSave Toggle Switch -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <TextBlock Text="AutoSave" Foreground="#E0E0E0" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Button Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" Click="BtnAutoSaveToggle_Click" ToolTip="Toggle AutoSave">
+                            <Border Width="34" Height="16" CornerRadius="8" Background="#2B2B2B" BorderBrush="#777777" BorderThickness="1">
+                                <Border x:Name="AutoSaveThumb" Width="12" Height="12" CornerRadius="6" Background="#E0E0E0" HorizontalAlignment="Right" Margin="1,0"/>
+                            </Border>
+                        </Button>
+                        <TextBlock x:Name="TxtAutoSaveStatus" Text="On" Foreground="#B0B0B0" FontSize="11" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- Quick Access Icons (Save, Undo, Redo) -->
+                    <Button Style="{StaticResource QatBtn}" ToolTip="Save (Ctrl+S)" Click="BtnSave_Click">
+                        <TextBlock Text="💾" FontSize="12"/>
+                    </Button>
+                    <Button Style="{StaticResource QatBtn}" ToolTip="Undo (Ctrl+Z)" Click="BtnUndo_Click">
+                        <TextBlock Text="↩" FontSize="13"/>
+                    </Button>
+                    <Button Style="{StaticResource QatBtn}" ToolTip="Redo (Ctrl+Y)" Click="BtnRedo_Click">
+                        <TextBlock Text="↪" FontSize="13"/>
+                    </Button>
+                    <TextBlock Text="⌄" Foreground="#777777" FontSize="10" VerticalAlignment="Center" Margin="2,0,10,0"/>
+
+                    <Border Width="1" Background="#444444" Height="16" Margin="0,0,10,0"/>
+
+                    <!-- Title Text -->
+                    <TextBlock x:Name="HeaderTitle" Text="Book1.xlsx - Excel" Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                 </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="⚙️ Settings" Padding="8,2" Margin="2,0" Background="Transparent" Foreground="#FFFFFF" BorderThickness="0" Click="BtnSettings_Click"/>
-                    <Button Content="❓ Shortcuts (F1)" Padding="8,2" Margin="2,0" Background="Transparent" Foreground="#FFFFFF" BorderThickness="0" Click="BtnShortcuts_Click"/>
-                    <Button Content="ℹ️ About" Padding="8,2" Margin="2,0" Background="Transparent" Foreground="#FFFFFF" BorderThickness="0" Click="BtnAbout_Click"/>
+
+                <!-- Center Section: Excel 365 Search Capsule (Alt+Q) -->
+                <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#383838" BorderBrush="#4C4C4C" BorderThickness="1" CornerRadius="4" Width="400" Height="26" Cursor="Hand" MouseLeftButtonUp="BtnSearch_Click">
+                    <Grid Margin="8,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="🔍" Foreground="#A6A6A6" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Grid.Column="1" Text="Search (Alt+Q)" Foreground="#A6A6A6" FontSize="11" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Right Section: Plan Badge + Profile Avatar + Settings -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Free & Open Source Badge styled like Excel's plan button -->
+                    <Border Background="#383838" BorderBrush="#4E4E4E" BorderThickness="1" CornerRadius="4" Padding="8,3" Margin="0,0,10,0" ToolTip="ExcelClone v2.0 - Free &amp; Open Source MIT">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="💠" FontSize="10" Margin="0,0,4,0"/>
+                            <TextBlock Text="ExcelClone Free" Foreground="#D0D0D0" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- User Profile Avatar (matching the purple 'IT' avatar from user screenshot) -->
+                    <Border Width="24" Height="24" CornerRadius="12" Background="#7030A0" Margin="0,0,8,0" ToolTip="User Account">
+                        <TextBlock Text="IT" Foreground="#FFFFFF" FontWeight="Bold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <Button Style="{StaticResource QatBtn}" ToolTip="Settings" Click="BtnSettings_Click">
+                        <TextBlock Text="⚙" FontSize="12"/>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Ribbon Bar / Tab Control -->
-        <TabControl Grid.Row="1" Background="#FFFFFF" BorderBrush="#E0E0E0" Padding="4">
-            <!-- Home Tab -->
-            <TabItem Header="Home">
-                <WrapPanel Orientation="Horizontal" Margin="4,2">
-                    <!-- File Group -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                        <Button Content="📄 New" Padding="6,4" Margin="2" Click="BtnNew_Click"/>
-                        <Button Content="📂 Open" Padding="6,4" Margin="2" Click="BtnOpen_Click"/>
-                        <Button Content="💾 Save" Padding="6,4" Margin="2" Click="BtnSave_Click"/>
-                        <Button Content="💾 Save As" Padding="6,4" Margin="2" Click="BtnSaveAs_Click"/>
-                        <Button Content="🖨️ Print" Padding="6,4" Margin="2" Click="BtnPrint_Click"/>
+        <!-- ========================================================================= -->
+        <!-- ROW 1: EXCEL 365 RIBBON TABS & CONTROLS                                   -->
+        <!-- ========================================================================= -->
+        <Grid Grid.Row="1">
+            <TabControl>
+            <!-- File Tab (Styled with File Operations Menu) -->
+            <TabItem Header="File">
+                <TabItem.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="📄 New (Ctrl+N)" Click="BtnNew_Click"/>
+                        <MenuItem Header="📂 Open... (Ctrl+O)" Click="BtnOpen_Click"/>
+                        <MenuItem Header="💾 Save (Ctrl+S)" Click="BtnSave_Click"/>
+                        <MenuItem Header="💾 Save As..." Click="BtnSaveAs_Click"/>
+                        <Separator/>
+                        <MenuItem Header="🖨️ Print (Ctrl+P)" Click="BtnPrint_Click"/>
+                        <MenuItem Header="📥 Import CSV..." Click="BtnImportCsv_Click"/>
+                        <MenuItem Header="📤 Export CSV..." Click="BtnExportCsv_Click"/>
+                        <Separator/>
+                        <MenuItem Header="⚙️ Settings..." Click="BtnSettings_Click"/>
+                        <MenuItem Header="ℹ️ About ExcelClone..." Click="BtnAbout_Click"/>
+                    </ContextMenu>
+                </TabItem.ContextMenu>
+                <Border Padding="10,6" Background="#D4D4D4">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource RibbonBigBtn}" Click="BtnNew_Click">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="📄" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="New" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RibbonBigBtn}" Click="BtnOpen_Click">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="📂" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Open" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RibbonBigBtn}" Click="BtnSave_Click">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="💾" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Save" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RibbonBigBtn}" Click="BtnSaveAs_Click">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="📑" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Save As" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RibbonBigBtn}" Click="BtnPrint_Click">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="🖨️" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Print" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-
-                    <!-- Clipboard -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                        <Button Content="📋 Paste" Padding="6,4" Margin="2" Click="BtnPaste_Click"/>
-                        <Button Content="✂️ Cut" Padding="6,4" Margin="2" Click="BtnCut_Click"/>
-                        <Button Content="📑 Copy" Padding="6,4" Margin="2" Click="BtnCopy_Click"/>
-                    </StackPanel>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-
-                    <!-- Font & Style -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                        <ComboBox x:Name="CmbFontFamily" Width="90" Margin="2" SelectedIndex="0" SelectionChanged="CmbFontFamily_SelectionChanged">
-                            <ComboBoxItem Content="Calibri"/>
-                            <ComboBoxItem Content="Segoe UI"/>
-                            <ComboBoxItem Content="Arial"/>
-                            <ComboBoxItem Content="Times New Roman"/>
-                            <ComboBoxItem Content="Consolas"/>
-                        </ComboBox>
-                        <ComboBox x:Name="CmbFontSize" Width="55" Margin="2" SelectedIndex="2" SelectionChanged="CmbFontSize_SelectionChanged">
-                            <ComboBoxItem Content="9"/>
-                            <ComboBoxItem Content="10"/>
-                            <ComboBoxItem Content="11"/>
-                            <ComboBoxItem Content="12"/>
-                            <ComboBoxItem Content="14"/>
-                            <ComboBoxItem Content="16"/>
-                            <ComboBoxItem Content="18"/>
-                        </ComboBox>
-                        <Button Content="𝐁 Bold (Ctrl+B)" FontWeight="Bold" Padding="6,4" Margin="2" Click="BtnBold_Click"/>
-                        <Button Content="𝐼 Italic (Ctrl+I)" FontStyle="Italic" Padding="6,4" Margin="2" Click="BtnItalic_Click"/>
-                        <Button Content="U̲ Underline (Ctrl+U)" Padding="6,4" Margin="2" Click="BtnUnderline_Click"/>
-                        <Button Content="🟡 Fill Yellow" Padding="6,4" Margin="2" Click="BtnFillYellow_Click"/>
-                        <Button Content="🔲 All Borders" Padding="6,4" Margin="2" Click="BtnBorders_Click"/>
-                    </StackPanel>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-
-                    <!-- Alignment & Editing -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                        <Button Content="Left" Padding="6,4" Margin="2" Click="BtnAlignLeft_Click"/>
-                        <Button Content="Center" Padding="6,4" Margin="2" Click="BtnAlignCenter_Click"/>
-                        <Button Content="Right" Padding="6,4" Margin="2" Click="BtnAlignRight_Click"/>
-                        <Button Content="🔗 Merge &amp; Center" Padding="6,4" Margin="2" Click="BtnMerge_Click"/>
-                        <Button Content="✂️ Unmerge" Padding="6,4" Margin="2" Click="BtnUnmerge_Click"/>
-                    </StackPanel>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-
-                    <!-- Search & Replace -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                        <Button Content="🔍 Find (Ctrl+F)" Padding="6,4" Margin="2" Click="BtnFind_Click"/>
-                        <Button Content="🔄 Replace (Ctrl+H)" Padding="6,4" Margin="2" Click="BtnReplace_Click"/>
-                    </StackPanel>
-                </WrapPanel>
+                </Border>
             </TabItem>
 
-            <!-- Insert Tab -->
+            <!-- Home Tab (EXACT EXCEL 365 LAYOUT) -->
+            <TabItem Header="Home" IsSelected="True">
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" Margin="4,2">
+                        <!-- GROUP 1: Clipboard -->
+                        <Grid Margin="0,0,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Big Paste Split Button -->
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnPaste_Click" ToolTip="Paste (Ctrl+V)">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="📋" FontSize="24" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="Paste ⌄" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <!-- Stacked Cut, Copy, Format Painter -->
+                                <StackPanel VerticalAlignment="Center" Margin="2,0,0,0">
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnCut_Click" ToolTip="Cut (Ctrl+X)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="✂" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Cut" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnCopy_Click" ToolTip="Copy (Ctrl+C)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="📑" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Copy" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnCopy_Click" ToolTip="Format Painter">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🖌" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Format Painter" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+                            <!-- Group Label -->
+                            <TextBlock Grid.Row="1" Text="Clipboard" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                        <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                        <!-- GROUP 2: Font -->
+                        <Grid Margin="0,0,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" VerticalAlignment="Center">
+                                <!-- Row 1: Font Family + Size + Increase/Decrease -->
+                                <StackPanel Orientation="Horizontal" Margin="0,1,0,3">
+                                    <ComboBox x:Name="CmbFontFamily" Width="92" Height="22" SelectedIndex="0" SelectionChanged="CmbFontFamily_SelectionChanged" VerticalContentAlignment="Center" Margin="0,0,2,0">
+                                        <ComboBoxItem Content="Calibri"/>
+                                        <ComboBoxItem Content="Segoe UI"/>
+                                        <ComboBoxItem Content="Arial"/>
+                                        <ComboBoxItem Content="Times New Roman"/>
+                                        <ComboBoxItem Content="Consolas"/>
+                                    </ComboBox>
+                                    <ComboBox x:Name="CmbFontSize" Width="42" Height="22" SelectedIndex="2" SelectionChanged="CmbFontSize_SelectionChanged" VerticalContentAlignment="Center" Margin="0,0,3,0">
+                                        <ComboBoxItem Content="9"/>
+                                        <ComboBoxItem Content="10"/>
+                                        <ComboBoxItem Content="11"/>
+                                        <ComboBoxItem Content="12"/>
+                                        <ComboBoxItem Content="14"/>
+                                        <ComboBoxItem Content="16"/>
+                                        <ComboBoxItem Content="18"/>
+                                        <ComboBoxItem Content="20"/>
+                                    </ComboBox>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Increase Font Size">
+                                        <TextBlock Text="A^" FontWeight="Bold" FontSize="10"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Decrease Font Size">
+                                        <TextBlock Text="Av" FontWeight="Bold" FontSize="9"/>
+                                    </Button>
+                                </StackPanel>
+                                <!-- Row 2: Bold, Italic, Underline, Borders, Fill Yellow, Font Color -->
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnBold_Click" ToolTip="Bold (Ctrl+B)">
+                                        <TextBlock Text="B" FontWeight="Bold" FontSize="12"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnItalic_Click" ToolTip="Italic (Ctrl+I)">
+                                        <TextBlock Text="I" FontStyle="Italic" FontWeight="SemiBold" FontSize="12"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnUnderline_Click" ToolTip="Underline (Ctrl+U)">
+                                        <TextBlock Text="U̲" FontWeight="SemiBold" FontSize="11"/>
+                                    </Button>
+                                    <Border Width="1" Background="#B8B8B8" Height="14" Margin="2,0"/>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnBorders_Click" ToolTip="All Borders">
+                                        <TextBlock Text="田" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnFillYellow_Click" ToolTip="Fill Color (Yellow)">
+                                        <TextBlock Text="🪣" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Font Color">
+                                        <TextBlock Text="A̲" FontWeight="Bold" Foreground="#C00000" FontSize="11"/>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Font" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                        <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                        <!-- GROUP 3: Alignment -->
+                        <Grid Margin="0,0,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" VerticalAlignment="Center">
+                                <!-- Row 1: Top, Middle, Bottom Align + Orientation + Wrap Text -->
+                                <StackPanel Orientation="Horizontal" Margin="0,1,0,3">
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Top Align">
+                                        <TextBlock Text="▔" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Middle Align">
+                                        <TextBlock Text="-" FontSize="12"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Bottom Align">
+                                        <TextBlock Text=" " TextDecorations="Underline" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Orientation">
+                                        <TextBlock Text="ab↗" FontSize="9"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Margin="4,0,0,0" Click="BtnWrapText_Click" ToolTip="Wrap Text">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="↩" FontSize="10" Margin="0,0,3,0"/>
+                                            <TextBlock Text="Wrap Text" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                                <!-- Row 2: Align Left, Center, Align Right + Indent + Merge & Center -->
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnAlignLeft_Click" ToolTip="Align Left">
+                                        <TextBlock Text="≡" FontSize="11" HorizontalAlignment="Left"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnAlignCenter_Click" ToolTip="Align Center">
+                                        <TextBlock Text="≡" FontSize="11" HorizontalAlignment="Center"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnAlignRight_Click" ToolTip="Align Right">
+                                        <TextBlock Text="≡" FontSize="11" HorizontalAlignment="Right"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnDecreaseIndent_Click" ToolTip="Decrease Indent">
+                                        <TextBlock Text="⇤" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnIncreaseIndent_Click" ToolTip="Increase Indent">
+                                        <TextBlock Text="⇥" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Margin="4,0,0,0" Click="BtnMerge_Click" ToolTip="Merge &amp; Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="⬌" FontSize="10" Margin="0,0,3,0"/>
+                                            <TextBlock Text="Merge &amp; Center ⌄" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Alignment" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                        <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                        <!-- GROUP 4: Number -->
+                        <Grid Margin="0,0,3,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" VerticalAlignment="Center">
+                                <!-- Row 1: Number Format Dropdown -->
+                                <ComboBox Width="105" Height="22" SelectedIndex="0" Margin="0,1,0,3" VerticalContentAlignment="Center">
+                                    <ComboBoxItem Content="General"/>
+                                    <ComboBoxItem Content="Number"/>
+                                    <ComboBoxItem Content="Currency"/>
+                                    <ComboBoxItem Content="Accounting"/>
+                                    <ComboBoxItem Content="Short Date"/>
+                                    <ComboBoxItem Content="Percentage"/>
+                                </ComboBox>
+                                <!-- Row 2: $, %, ,, Increase/Decrease Decimal -->
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnCurrency_Click" ToolTip="Accounting Number Format ($)">
+                                        <TextBlock Text="$" FontWeight="Bold" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnPercent_Click" ToolTip="Percent Style (%)">
+                                        <TextBlock Text="%" FontWeight="Bold" FontSize="11"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnComma_Click" ToolTip="Comma Style (,)">
+                                        <TextBlock Text="," FontWeight="Bold" FontSize="13"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Increase Decimal">
+                                        <TextBlock Text=".00→" FontSize="9"/>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Decrease Decimal">
+                                        <TextBlock Text="←.0" FontSize="9"/>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Number" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                        <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                        <!-- GROUP 5: Styles (Conditional Formatting, Format as Table, Cell Styles chips) -->
+                        <Grid Margin="0,0,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource RibbonBigBtn}" ToolTip="Conditional Formatting">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="📊" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="Conditional&#x0a;Formatting ⌄" FontSize="10" TextAlignment="Center" Margin="0,1,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnCreateTable_Click" ToolTip="Format as Table">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="📑" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="Format as&#x0a;Table ⌄" FontSize="10" TextAlignment="Center" Margin="0,1,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <!-- Interactive Cell Styles Preset Gallery (Matching Photo!) -->
+                                <Border Background="#E6E6E6" BorderBrush="#C0C0C0" BorderThickness="1" CornerRadius="2" Padding="2" Margin="3,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="26"/>
+                                            <RowDefinition Height="26"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="54"/>
+                                            <ColumnDefinition Width="54"/>
+                                            <ColumnDefinition Width="54"/>
+                                        </Grid.ColumnDefinitions>
+                                        <!-- Normal Style -->
+                                        <Button Grid.Row="0" Grid.Column="0" Tag="Normal" Click="BtnCellStyle_Click" Margin="1" Background="#FFFFFF" BorderBrush="#D0D0D0" BorderThickness="1" Cursor="Hand" ToolTip="Normal Style">
+                                            <TextBlock Text="Normal" FontSize="9.5" Foreground="#1A1A1A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
+                                        <!-- Bad Style (Pink / Red) -->
+                                        <Button Grid.Row="0" Grid.Column="1" Tag="Bad" Click="BtnCellStyle_Click" Margin="1" Background="#FFC7CE" BorderBrush="#FFB0B9" BorderThickness="1" Cursor="Hand" ToolTip="Bad Style">
+                                            <TextBlock Text="Bad" FontSize="9.5" Foreground="#9C0006" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
+                                        <!-- Good Style (Light Green) -->
+                                        <Button Grid.Row="0" Grid.Column="2" Tag="Good" Click="BtnCellStyle_Click" Margin="1" Background="#C6EFCE" BorderBrush="#B4E7BC" BorderThickness="1" Cursor="Hand" ToolTip="Good Style">
+                                            <TextBlock Text="Good" FontSize="9.5" Foreground="#006100" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
+                                        <!-- Neutral Style (Yellow) -->
+                                        <Button Grid.Row="1" Grid.Column="0" Tag="Neutral" Click="BtnCellStyle_Click" Margin="1" Background="#FFEB9C" BorderBrush="#FDE074" BorderThickness="1" Cursor="Hand" ToolTip="Neutral Style">
+                                            <TextBlock Text="Neutral" FontSize="9.5" Foreground="#9C6500" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
+                                        <!-- Calculation Style -->
+                                        <Button Grid.Row="1" Grid.Column="1" Tag="Calculation" Click="BtnCellStyle_Click" Margin="1" Background="#F2F2F2" BorderBrush="#D0D0D0" BorderThickness="1" Cursor="Hand" ToolTip="Calculation Style">
+                                            <TextBlock Text="Calculation" FontSize="9" Foreground="#FA7D00" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
+                                        <!-- Check Cell Style -->
+                                        <Button Grid.Row="1" Grid.Column="2" Tag="CheckCell" Click="BtnCellStyle_Click" Margin="1" Background="#FFFFFF" BorderBrush="#555555" BorderThickness="1" Cursor="Hand" ToolTip="Check Cell Style">
+                                            <TextBlock Text="Check Cell" FontSize="9" Foreground="#1A1A1A" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Styles" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                        <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                        <!-- GROUP 6: Cells -->
+                        <Grid Margin="0,0,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAddSheet_Click" ToolTip="Insert Cells or Worksheet">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="➕" FontSize="20" HorizontalAlignment="Center" Foreground="#107C41"/>
+                                        <TextBlock Text="Insert ⌄" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnClearContents_Click" ToolTip="Delete Selected Cells or Content">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="❌" FontSize="18" HorizontalAlignment="Center" Foreground="#D83B01"/>
+                                        <TextBlock Text="Delete ⌄" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnBorders_Click" ToolTip="Format Cells">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="📐" FontSize="19" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="Format ⌄" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Cells" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                        <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                        <!-- GROUP 7: Editing -->
+                        <Grid Margin="0,0,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- AutoSum -->
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAutoSum_Click" ToolTip="AutoSum (∑)">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="∑" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="AutoSum ⌄" FontSize="10.5" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <StackPanel VerticalAlignment="Center" Margin="2,0,0,0">
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnClearContents_Click" ToolTip="Clear Contents">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🧹" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Clear ⌄" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnSortAsc_Click" ToolTip="Sort &amp; Filter">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="AZ↓" FontSize="10" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Sort &amp; Filter ⌄" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnFind_Click" ToolTip="Find &amp; Select (Ctrl+F, Ctrl+H)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🔍" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Find &amp; Select ⌄" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Editing" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                        <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                        <!-- GROUP 8: Tools / Add-ins -->
+                        <Grid Margin="0,0,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnSettings_Click" ToolTip="ExcelClone Settings">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="⚙" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="Settings" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnShortcuts_Click" ToolTip="Keyboard Shortcuts (F1)">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="⌨" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="Shortcuts" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAbout_Click" ToolTip="About ExcelClone">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="ℹ" FontSize="20" HorizontalAlignment="Center" Foreground="#107C41"/>
+                                        <TextBlock Text="About" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Add-ins" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Insert Tab (Tables, Charts, Pictures) -->
             <TabItem Header="Insert">
-                <WrapPanel Orientation="Horizontal" Margin="4,2">
-                    <Button Content="➕ Add Worksheet" Padding="8,4" Margin="2" Click="BtnAddSheet_Click"/>
-                    <Button Content="🖼️ Insert Picture" Padding="8,4" Margin="2" Click="BtnInsertPicture_Click"/>
-                    <Button Content="🔷 Insert Shape" Padding="8,4" Margin="2" Click="BtnInsertShape_Click"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-                    <Button Content="📊 Column Chart" ToolTip="Create in-memory interactive Column Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertColumnChart_Click"/>
-                    <Button Content="📊 Bar Chart" ToolTip="Create in-memory interactive Bar Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertBarChart_Click"/>
-                    <Button Content="📈 Line Chart" ToolTip="Create in-memory interactive Line Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertLineChart_Click"/>
-                    <Button Content="🥧 Pie Chart" ToolTip="Create in-memory interactive Pie Chart from selected data" Padding="8,4" Margin="2" Click="BtnInsertPieChart_Click"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-                    <Button Content="📑 Create Table" Padding="8,4" Margin="2" Click="BtnCreateTable_Click"/>
-                    <Button Content="📊 Pivot Summary" ToolTip="Create multi-dimensional cross-tabulation summary table with aggregations, totals, and linked chart" Padding="8,4" Margin="2" Click="BtnPivotTable_Click"/>
-                    <Button Content="🔄 Refresh Summary" ToolTip="Recalculate and refresh the active Pivot Summary with latest source data" Padding="8,4" Margin="2" Click="BtnRefreshPivot_Click"/>
-                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <!-- Tables Group -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnPivotTable_Click" ToolTip="Pivot Summary Table">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📊" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="PivotTable" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnCreateTable_Click" ToolTip="Create Table">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📑" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Table" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnRefreshPivot_Click" ToolTip="Refresh Pivot Summary">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔄" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Refresh" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Tables" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Illustrations Group -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnInsertPicture_Click" ToolTip="Insert Picture">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🖼" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Pictures" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnInsertShape_Click" ToolTip="Insert Shape">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔷" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Shapes" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Illustrations" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Charts Group -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnInsertColumnChart_Click" ToolTip="Interactive Column Chart">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📊" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Column Chart" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnInsertBarChart_Click" ToolTip="Interactive Bar Chart">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📶" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Bar Chart" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnInsertLineChart_Click" ToolTip="Interactive Line Chart">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📈" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Line Chart" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnInsertPieChart_Click" ToolTip="Interactive Pie Chart">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🥧" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Pie Chart" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Charts" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Worksheets Group -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAddSheet_Click" ToolTip="Add New Worksheet">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="➕" FontSize="22" HorizontalAlignment="Center" Foreground="#107C41"/>
+                                    <TextBlock Text="Add Sheet" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Worksheets" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
             </TabItem>
 
-            <!-- Draw Tab (InkCanvas Overlay) -->
+            <!-- Draw Tab (Overlay InkCanvas) -->
             <TabItem Header="Draw">
-                <WrapPanel Orientation="Horizontal" Margin="4,2">
-                    <Button Content="👆 Select (Grid)" Padding="8,4" Margin="2" Click="BtnDrawSelect_Click"/>
-                    <Button Content="🖊️ Black Pen" Padding="8,4" Margin="2" Click="BtnBlackPen_Click"/>
-                    <Button Content="🔴 Red Pen" Padding="8,4" Margin="2" Click="BtnRedPen_Click"/>
-                    <Button Content="🖍️ Highlighter" Padding="8,4" Margin="2" Click="BtnHighlighter_Click"/>
-                    <Button Content="🧹 Clear Drawing" Padding="8,4" Margin="2" Click="BtnClearDrawing_Click"/>
-                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnDrawSelect_Click" ToolTip="Select / Grid Mode">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="👆" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Select" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnBlackPen_Click" ToolTip="Black Pen">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🖊" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Black Pen" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnRedPen_Click" ToolTip="Red Pen">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔴" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Red Pen" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnHighlighter_Click" ToolTip="Highlighter">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🖍" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Highlighter" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnClearDrawing_Click" ToolTip="Clear All Inking">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🧹" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Clear Drawing" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Drawing Tools" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Page Layout Tab -->
+            <TabItem Header="Page Layout">
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnPrint_Click" ToolTip="Print (Ctrl+P)">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🖨" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Print" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Page Setup" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" VerticalAlignment="Center">
+                            <CheckBox Content="View Gridlines" IsChecked="True" Margin="2,2"/>
+                            <CheckBox Content="View Headings" IsChecked="True" Margin="2,2"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Sheet Options" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
             </TabItem>
 
             <!-- Formulas Tab -->
             <TabItem Header="Formulas">
-                <WrapPanel Orientation="Horizontal" Margin="4,2">
-                    <Button Content="∑ AutoSum" Padding="8,4" Margin="2" Click="BtnAutoSum_Click"/>
-                    <Button Content="🏷️ Define Name..." Padding="8,4" Margin="2" Click="BtnDefineName_Click"/>
-                    <Button Content="📋 Name Manager..." Padding="8,4" Margin="2" Click="BtnNameManager_Click"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-                    <Button Content="🔍 Trace Precedents" Padding="8,4" Margin="2" Click="BtnTracePrecedents_Click"/>
-                    <Button Content="🎯 Trace Dependents" Padding="8,4" Margin="2" Click="BtnTraceDependents_Click"/>
-                    <Button Content="🔄 Calculate Now (F9)" Padding="8,4" Margin="2" Click="BtnRecalculate_Click"/>
-                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <!-- Function Library -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAutoSum_Click" ToolTip="Insert Function (fx)">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="fx" FontStyle="Italic" FontWeight="Bold" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Insert Function" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAutoSum_Click" ToolTip="AutoSum">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="∑" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="AutoSum ⌄" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Function Library" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Defined Names -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnNameManager_Click" ToolTip="Name Manager">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📋" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Name Manager" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnDefineName_Click" ToolTip="Define Name">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🏷" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Define Name" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Defined Names" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Formula Auditing -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnTracePrecedents_Click" ToolTip="Trace Precedents">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔍" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Trace Precedents" FontSize="10" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnTraceDependents_Click" ToolTip="Trace Dependents">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🎯" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Trace Dependents" FontSize="10" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Formula Auditing" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Calculation -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnRecalculate_Click" ToolTip="Calculate Now (F9)">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔄" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Calculate Now" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Calculation" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
             </TabItem>
 
             <!-- Data Tab -->
             <TabItem Header="Data">
-                <WrapPanel Orientation="Horizontal" Margin="4,2">
-                    <Button Content="⬇️ Sort A to Z" Padding="8,4" Margin="2" Click="BtnSortAsc_Click"/>
-                    <Button Content="⬆️ Sort Z to A" Padding="8,4" Margin="2" Click="BtnSortDesc_Click"/>
-                    <Button Content="🔍 Filter" Padding="8,4" Margin="2" Click="BtnFilter_Click"/>
-                    <Button Content="🗑️ Remove Duplicates" Padding="8,4" Margin="2" Click="BtnRemoveDuplicates_Click"/>
-                    <Button Content="✅ Data Validation..." Padding="8,4" Margin="2" Click="BtnDataValidation_Click"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-                    <Button Content="🎯 Goal Seek..." Padding="8,4" Margin="2" Click="BtnGoalSeek_Click"/>
-                    <Button Content="📈 Analysis Toolpak..." Padding="8,4" Margin="2" Click="BtnAnalysisToolpak_Click"/>
-                    <Button Content="⚙️ Data Studio..." Padding="8,4" Margin="2" Click="BtnDataTransformation_Click"/>
-                    <Button Content="📥 Import CSV" Padding="8,4" Margin="2" Click="BtnImportCsv_Click"/>
-                    <Button Content="📤 Export CSV" Padding="8,4" Margin="2" Click="BtnExportCsv_Click"/>
-                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <!-- Get & Transform Data -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnImportCsv_Click" ToolTip="From CSV Text">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📥" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="From CSV" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnExportCsv_Click" ToolTip="Export to CSV">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📤" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="To CSV" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnDataTransformation_Click" ToolTip="Data Studio">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="⚙" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Data Studio" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Get &amp; Transform Data" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Sort & Filter -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnSortAsc_Click" ToolTip="Sort A to Z">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="AZ↓" FontSize="18" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Sort A to Z" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnSortDesc_Click" ToolTip="Sort Z to A">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="ZA↓" FontSize="18" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Sort Z to A" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnFilter_Click" ToolTip="Filter">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🌪" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Filter" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Sort &amp; Filter" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Data Tools -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnDataValidation_Click" ToolTip="Data Validation">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="✅" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Data Validation" FontSize="10" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnRemoveDuplicates_Click" ToolTip="Remove Duplicates">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🗑" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Duplicates" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Data Tools" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Forecast / Analysis -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnGoalSeek_Click" ToolTip="Goal Seek">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🎯" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Goal Seek" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAnalysisToolpak_Click" ToolTip="Analysis Toolpak">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📈" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Analysis" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Forecast" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
             </TabItem>
 
             <!-- Review Tab -->
             <TabItem Header="Review">
-                <WrapPanel Orientation="Horizontal" Margin="4,2">
-                    <Button Content="💬 New Comment..." Padding="8,4" Margin="2" Click="BtnAddComment_Click"/>
-                    <Button Content="❌ Delete Comment" Padding="8,4" Margin="2" Click="BtnDeleteComment_Click"/>
-                    <Button Content="📋 Show All Comments" Padding="8,4" Margin="2" Click="BtnShowComments_Click"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-                    <Button Content="🔒 Protect Sheet..." Padding="8,4" Margin="2" Click="BtnProtectSheet_Click"/>
-                    <Button Content="🔓 Unprotect Sheet" Padding="8,4" Margin="2" Click="BtnUnprotectSheet_Click"/>
-                    <Button Content="🛡️ Protect Workbook..." Padding="8,4" Margin="2" Click="BtnProtectWorkbook_Click"/>
-                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <!-- Comments -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAddComment_Click" ToolTip="New Comment">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="💬" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="New Comment" FontSize="10" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnDeleteComment_Click" ToolTip="Delete Comment">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="❌" FontSize="18" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Delete" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnShowComments_Click" ToolTip="Show All Comments">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📋" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Show All" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Comments" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Protect -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnProtectSheet_Click" ToolTip="Protect Sheet">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔒" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Protect Sheet" FontSize="10" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnUnprotectSheet_Click" ToolTip="Unprotect Sheet">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔓" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Unprotect" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnProtectWorkbook_Click" ToolTip="Protect Workbook">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🛡" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Workbook" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Protect" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
             </TabItem>
 
             <!-- View Tab -->
             <TabItem Header="View">
-                <WrapPanel Orientation="Horizontal" Margin="4,2">
-                    <Button Content="❄️ Freeze Panes" Padding="8,4" Margin="2" Click="BtnFreezePanes_Click"/>
-                    <Button Content="☀️ Unfreeze Panes" Padding="8,4" Margin="2" Click="BtnUnfreezePanes_Click"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-                    <Button Content="🔍 100%" Padding="8,4" Margin="2" Click="BtnZoomReset_Click"/>
-                    <Button Content="➕ Zoom In" Padding="8,4" Margin="2" Click="BtnZoomIn_Click"/>
-                    <Button Content="➖ Zoom Out" Padding="8,4" Margin="2" Click="BtnZoomOut_Click"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="4,0"/>
-                    <Button Content="🔄 Toggle Theme" Padding="8,4" Margin="2" Click="BtnToggleTheme_Click"/>
-                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <!-- Window / Freeze Panes -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnFreezePanes_Click" ToolTip="Freeze Panes">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="❄" FontSize="22" HorizontalAlignment="Center" Foreground="#0078D7"/>
+                                    <TextBlock Text="Freeze Panes" FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnUnfreezePanes_Click" ToolTip="Unfreeze Panes">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="☀️" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Unfreeze" FontSize="10.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Window" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Zoom -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnZoomReset_Click" ToolTip="Zoom 100%">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔍" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="100%" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnZoomIn_Click" ToolTip="Zoom In">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="➕" FontSize="18" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Zoom In" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnZoomOut_Click" ToolTip="Zoom Out">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="➖" FontSize="18" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Zoom Out" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Zoom" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                    <Border Width="1" Background="#B8B8B8" Margin="4,4"/>
+
+                    <!-- Theme -->
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnToggleTheme_Click" ToolTip="Toggle Dark Gray / Colorful Theme">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🎨" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Theme" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Theme" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Help Tab -->
+            <TabItem Header="Help">
+                <StackPanel Orientation="Horizontal" Margin="6,2">
+                    <Grid Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnShortcuts_Click" ToolTip="Help">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="❓" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Help" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnShortcuts_Click" ToolTip="Keyboard Shortcuts (F1)">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="⌨" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Shortcuts" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource RibbonBigBtn}" Click="BtnAbout_Click" ToolTip="About ExcelClone">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="ℹ" FontSize="20" HorizontalAlignment="Center" Foreground="#107C41"/>
+                                    <TextBlock Text="About" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Text="Help" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
+                    </Grid>
+                </StackPanel>
             </TabItem>
         </TabControl>
 
-        <!-- Formula Bar -->
-        <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,4">
+        <!-- Tab Strip Right Utilities (Comments, Share, Collapse) -->
+        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Height="31" Orientation="Horizontal" Margin="0,0,10,0">
+            <Button Style="{StaticResource QatBtn}" Padding="8,4" Margin="0,0,6,0" Click="BtnShowComments_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="💬" Margin="0,0,4,0" FontSize="11"/>
+                    <TextBlock Text="Comments" Foreground="#E0E0E0" FontSize="11"/>
+                </StackPanel>
+            </Button>
+            <Button Background="#107C41" Foreground="#FFFFFF" BorderThickness="0" Padding="12,3" Margin="0,0,8,0" Cursor="Hand" Click="BtnShare_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="3"/>
+                    </Style>
+                </Button.Resources>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🔗" Margin="0,0,5,0" FontSize="10"/>
+                    <TextBlock Text="Share" FontWeight="SemiBold" FontSize="11"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource QatBtn}" Width="24" Height="24" ToolTip="Collapse the Ribbon">
+                <TextBlock Text="⌃" Foreground="#A0A0A0" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Button>
+        </StackPanel>
+    </Grid>
+
+        <!-- ========================================================================= -->
+        <!-- ROW 2: FORMULA BAR AREA (DARK GRAY OFFICE THEME)                          -->
+        <!-- ========================================================================= -->
+        <Border Grid.Row="2" Background="#383838" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1" Padding="6,3">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="80"/>
-                    <ColumnDefinition Width="30"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/> <!-- Name Box -->
+                    <ColumnDefinition Width="Auto"/> <!-- Divider -->
+                    <ColumnDefinition Width="Auto"/> <!-- Cancel, Enter, fx -->
+                    <ColumnDefinition Width="*"/>    <!-- Formula Input -->
+                    <ColumnDefinition Width="Auto"/> <!-- Expand Chevron -->
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="TxtNameBox" Grid.Column="0" Text="A1" FontWeight="SemiBold" TextAlignment="Center" VerticalAlignment="Center" IsReadOnly="True" Margin="0,0,6,0"/>
-                <TextBlock Grid.Column="1" Text="fx" FontStyle="Italic" FontWeight="Bold" FontSize="14" Foreground="#777777" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                <TextBox x:Name="TxtFormulaBar" Grid.Column="2" VerticalAlignment="Center" Padding="6,3" KeyDown="TxtFormulaBar_KeyDown"/>
+
+                <!-- Name Box (Dropdown Capsule) -->
+                <Border Grid.Column="0" Background="#2B2B2B" BorderBrush="#4E4E4E" BorderThickness="1" CornerRadius="2" Width="82" Height="22" VerticalAlignment="Center">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtNameBox" Grid.Column="0" Text="A1" FontWeight="SemiBold" Foreground="#FFFFFF" Background="Transparent" BorderThickness="0" TextAlignment="Center" VerticalAlignment="Center" IsReadOnly="True" FontSize="11"/>
+                        <TextBlock Grid.Column="1" Text="⌄" Foreground="#888888" FontSize="10" VerticalAlignment="Center" Margin="0,-2,4,0"/>
+                    </Grid>
+                </Border>
+
+                <!-- Divider -->
+                <Border Grid.Column="1" Width="1" Background="#4E4E4E" Height="16" Margin="6,0"/>
+
+                <!-- Formula Action Buttons: Cancel, Enter, fx -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <Button Width="20" Height="20" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnFormulaCancel_Click" ToolTip="Cancel (Esc)">
+                        <TextBlock Text="✕" Foreground="#888888" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button Width="20" Height="20" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnFormulaEnter_Click" ToolTip="Enter">
+                        <TextBlock Text="✓" Foreground="#888888" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button Width="22" Height="20" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnAutoSum_Click" ToolTip="Insert Function">
+                        <TextBlock Text="fx" FontStyle="Italic" FontWeight="Bold" FontSize="13" Foreground="#A8A8A8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Formula Bar Input -->
+                <TextBox x:Name="TxtFormulaBar" Grid.Column="3" Background="#252525" BorderBrush="#484848" BorderThickness="1" Foreground="#FFFFFF" CaretBrush="#FFFFFF" Padding="6,2" VerticalAlignment="Center" Height="22" FontSize="11.5" KeyDown="TxtFormulaBar_KeyDown"/>
+
+                <!-- Expand Chevron -->
+                <TextBlock Grid.Column="4" Text="⌄" Foreground="#888888" FontSize="11" VerticalAlignment="Center" Margin="6,0,4,0" Cursor="Hand" ToolTip="Expand Formula Bar"/>
             </Grid>
         </Border>
 
-        <!-- Grid and InkCanvas Layer -->
-        <Grid Grid.Row="3">
+        <!-- ========================================================================= -->
+        <!-- ROW 3: SPREADSHEET GRID & INKCANVAS LAYER                                 -->
+        <!-- ========================================================================= -->
+        <Grid Grid.Row="3" Background="#FFFFFF">
             <rg:ReoGridControl x:Name="gridControl"/>
             <InkCanvas x:Name="drawingCanvas" Visibility="Collapsed" Background="Transparent"/>
         </Grid>
 
-        <!-- Status Bar -->
-        <Border Grid.Row="4" Background="#107C41" Padding="12,5">
-            <Grid>
+        <!-- ========================================================================= -->
+        <!-- ROW 4: STATUS BAR (DARK CHARCOAL OFFICE THEME)                            -->
+        <!-- ========================================================================= -->
+        <Border Grid.Row="4" Background="#202020" BorderBrush="#303030" BorderThickness="0,1,0,0" Height="26" Padding="10,0">
+            <Grid VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="StatusText" Foreground="#FFFFFF" Text="Ready (ExcelClone v2.0 Open Source MIT Edition)."/>
-                <TextBlock x:Name="StatusCell" Grid.Column="1" Foreground="#E0E0E0" Text="Cell: A1" Margin="0,0,16,0"/>
-                <TextBlock Grid.Column="2" Foreground="#D0D0D0" Text="100% MIT Permissive | Offline"/>
+
+                <!-- Left: Status Text -->
+                <TextBlock x:Name="StatusText" Grid.Column="0" Foreground="#E0E0E0" Text="Ready" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                <!-- Middle: Accessibility Status -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="✓" Foreground="#107C41" FontWeight="Bold" FontSize="11" Margin="0,0,4,0"/>
+                    <TextBlock Text="Accessibility: Good to go" Foreground="#CCCCCC" FontSize="11" VerticalAlignment="Center"/>
+                    <Border Width="1" Background="#3A3A3A" Height="14" Margin="12,0"/>
+                    <TextBlock x:Name="StatusCell" Foreground="#A0A0A0" Text="Cell: A1" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Right: View Modes + Zoom Controls -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- View Mode Buttons -->
+                    <Button Width="20" Height="20" Background="Transparent" BorderThickness="0" Margin="1,0" ToolTip="Normal View">
+                        <TextBlock Text="⊞" Foreground="#A0A0A0" FontSize="11" HorizontalAlignment="Center"/>
+                    </Button>
+                    <Button Width="20" Height="20" Background="Transparent" BorderThickness="0" Margin="1,0" ToolTip="Page Layout View">
+                        <TextBlock Text="📄" Foreground="#A0A0A0" FontSize="10" HorizontalAlignment="Center"/>
+                    </Button>
+                    <Button Width="20" Height="20" Background="Transparent" BorderThickness="0" Margin="1,0" ToolTip="Page Break Preview">
+                        <TextBlock Text="📑" Foreground="#A0A0A0" FontSize="10" HorizontalAlignment="Center"/>
+                    </Button>
+
+                    <Border Width="1" Background="#3A3A3A" Height="14" Margin="6,0"/>
+
+                    <!-- Zoom Controls -->
+                    <Button Width="18" Height="18" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnZoomOut_Click" ToolTip="Zoom Out">
+                        <TextBlock Text="—" Foreground="#CCCCCC" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+
+                    <Slider Width="90" Minimum="50" Maximum="200" Value="100" VerticalAlignment="Center" Margin="4,0"/>
+
+                    <Button Width="18" Height="18" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnZoomIn_Click" ToolTip="Zoom In">
+                        <TextBlock Text="+" Foreground="#CCCCCC" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+
+                    <Button Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnZoomReset_Click" ToolTip="Reset Zoom (100%)">
+                        <TextBlock Text="100%" Foreground="#FFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                    </Button>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

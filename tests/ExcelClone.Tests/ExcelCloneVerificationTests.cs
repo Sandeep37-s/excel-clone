@@ -770,5 +770,39 @@ namespace ExcelClone.Tests
                 Assert.Equal(500.0, overallGrandTotal);
             });
         }
+
+        [Fact]
+        public void CaptureMainWindowScreenshot()
+        {
+            var t = new System.Threading.Thread(() =>
+            {
+                var win = new MainWindow();
+                var grid = (System.Windows.Controls.Grid)win.Content;
+                win.Content = null;
+
+                grid.Width = 1340;
+                grid.Height = 800;
+                grid.Measure(new System.Windows.Size(1340, 800));
+                grid.Arrange(new System.Windows.Rect(0, 0, 1340, 800));
+                grid.UpdateLayout();
+
+                var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(1340, 800, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                bmp.Render(grid);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+                
+                string targetDir = @"C:\Users\it\.gemini\antigravity\brain\69026510-822f-4af9-87e1-7017bb7376eb";
+                string targetFile = System.IO.Path.Combine(targetDir, "excel365_redesigned_ui.png");
+                using (var fs = System.IO.File.Create(targetFile))
+                {
+                    encoder.Save(fs);
+                }
+            });
+            t.SetApartmentState(System.Threading.ApartmentState.STA);
+            t.Start();
+            t.Join(5000);
+
+            Assert.True(System.IO.File.Exists(@"C:\Users\it\.gemini\antigravity\brain\69026510-822f-4af9-87e1-7017bb7376eb\excel365_redesigned_ui.png"));
+        }
     }
 }

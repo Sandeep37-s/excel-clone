@@ -24,3 +24,4 @@ Download the ready-to-run, standalone application package directly from this fol
 - **Prerequisites:** None (Self-contained portable execution).
 - **License:** 100% Free & Open Source (MIT License). No subscription, registration, or activation key required.
 - **Note on Android / APK:** ExcelClone is built using Windows Presentation Foundation (WPF) and .NET 10 for Windows desktop and laptop computers. It does not run on Android (`.apk`).
+

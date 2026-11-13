@@ -34,7 +34,7 @@ namespace ExcelClone.Tests
         {
             // Verify default settings do not require authentication or network connection
             var settings = new UserSettings();
-            Assert.Equal("Office2019Colorful", settings.Theme);
+            Assert.Equal("Office2019DarkGray", settings.Theme);
             Assert.Equal(5, settings.AutoSaveMinutes);
             Assert.True(settings.IsAutoCalc);
             Assert.True(settings.ShowWelcomeOnStartup);

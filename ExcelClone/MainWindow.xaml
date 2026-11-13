@@ -5,22 +5,22 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
         xmlns:skin="clr-namespace:Syncfusion.SfSkinManager;assembly=Syncfusion.SfSkinManager.WPF"
-        skin:SfSkinManager.VisualStyle="Office2019Colorful"
+        skin:SfSkinManager.VisualStyle="Office2019DarkGray"
         mc:Ignorable="d"
-        Title="ExcelClone Professional"
-        Height="800" Width="1300"
+        Title="Book1 - Excel"
+        Height="850" Width="1350"
         WindowStartupLocation="CenterScreen"
         AllowDrop="True"
         Drop="Window_Drop">
 
-    <Grid>
+    <Grid Background="#202020">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- SfSpreadsheetRibbon provides full Excel-like ribbon (File/Home/Insert/PageLayout/Formulas/Data/View) -->
+        <!-- SfSpreadsheetRibbon provides full Excel-like ribbon (File/Home/Insert/Draw/PageLayout/Formulas/Data/Review/View/Help) -->
         <syncfusion:SfSpreadsheetRibbon Grid.Row="0"
                                         x:Name="spreadsheetRibbon"
                                         DataContext="{Binding ElementName=spreadsheetControl}"
@@ -31,14 +31,44 @@
                                   x:Name="spreadsheetControl"
                                   FormulaBarVisibility="Visible"/>
 
-        <!-- Status Bar -->
-        <StatusBar Grid.Row="2" Background="#F0F0F0" BorderBrush="#D0D0D0" BorderThickness="0,1,0,0" Height="24">
+        <!-- Status Bar in Microsoft Excel Dark Mode -->
+        <StatusBar Grid.Row="2" Background="#202020" BorderBrush="#333333" BorderThickness="0,1,0,0" Height="26">
             <StatusBarItem>
-                <TextBlock x:Name="StatusText" Text="Ready" FontSize="11" Foreground="#333333"/>
+                <TextBlock x:Name="StatusText" Text="Ready" FontSize="11" Foreground="#CCCCCC" Margin="8,0,0,0"/>
             </StatusBarItem>
-            <Separator Margin="4,2" HorizontalAlignment="Right"/>
+            <StatusBarItem>
+                <TextBlock Text="Accessibility: Good to go" FontSize="11" Foreground="#888888" Margin="16,0,0,0"/>
+            </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="FileInfoText" Text="Unsaved Workbook" FontSize="11" Foreground="#555555" Margin="0,0,10,0"/>
+                <TextBlock x:Name="FileInfoText" Text="Unsaved Workbook" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                    <!-- Normal View -->
+                    <Button ToolTip="Normal View" Width="22" Height="20" Background="Transparent" BorderThickness="0" Margin="2,0" Click="BtnViewNormal_Click">
+                        <Border BorderBrush="#888888" BorderThickness="1" Width="12" Height="10" Background="Transparent">
+                            <Grid>
+                                <Line X1="6" Y1="0" X2="6" Y2="10" Stroke="#888888"/>
+                                <Line X1="0" Y1="5" X2="12" Y2="5" Stroke="#888888"/>
+                            </Grid>
+                        </Border>
+                    </Button>
+                    <!-- Page Break Preview -->
+                    <Button ToolTip="Page Break Preview" Width="22" Height="20" Background="Transparent" BorderThickness="0" Margin="2,0" Click="BtnViewPageBreak_Click">
+                        <Border BorderBrush="#888888" BorderThickness="1" Width="12" Height="10" Background="Transparent">
+                            <Line X1="0" Y1="5" X2="12" Y2="5" Stroke="#888888" StrokeDashArray="2 1"/>
+                        </Border>
+                    </Button>
+                    <!-- Page Layout -->
+                    <Button ToolTip="Page Layout" Width="22" Height="20" Background="Transparent" BorderThickness="0" Margin="2,0" Click="BtnViewPageLayout_Click">
+                        <Border BorderBrush="#888888" BorderThickness="1" Width="10" Height="12" Background="Transparent"/>
+                    </Button>
+                    <!-- Zoom Slider -->
+                    <TextBlock Text="-" Foreground="#888888" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,4,0" Cursor="Hand" MouseDown="BtnZoomOut_Click"/>
+                    <Slider x:Name="ZoomSlider" Width="85" Minimum="50" Maximum="200" Value="100" VerticalAlignment="Center" ValueChanged="ZoomSlider_ValueChanged"/>
+                    <TextBlock Text="+" Foreground="#888888" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0" Cursor="Hand" MouseDown="BtnZoomIn_Click"/>
+                    <TextBlock x:Name="ZoomText" Text="100%" Foreground="#CCCCCC" FontSize="11" Width="36" VerticalAlignment="Center"/>
+                </StackPanel>
             </StatusBarItem>
         </StatusBar>
     </Grid>

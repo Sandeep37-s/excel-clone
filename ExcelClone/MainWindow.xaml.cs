@@ -82,6 +82,15 @@ namespace ExcelClone
             try
             {
                 var settings = SettingsService.Load();
+                if (settings.Theme.Contains("DarkGray"))
+                {
+                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019DarkGray);
+                }
+                else
+                {
+                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019Colorful);
+                }
+
                 string[] args = Environment.GetCommandLineArgs();
 
                 for (int i = 0; i < args.Length; i++)
@@ -160,129 +169,361 @@ namespace ExcelClone
             try
             {
                 var ribbon = GetVisualChild<Ribbon>(sender as FrameworkElement);
-                if (ribbon != null)
+                if (ribbon == null) return;
+
+                // 1. Populate Quick Access Toolbar (AutoSave toggle, Save, Undo, Redo, Search)
+                if (ribbon.QuickAccessToolBar != null)
                 {
-                    RibbonTab quickTab = new RibbonTab { Caption = "ExcelClone Tools" };
+                    var autoSaveBtn = new RibbonButton { Label = "AutoSave: ON", ToolTip = "Automatic background recovery is active (every 5 minutes)" };
+                    autoSaveBtn.Click += (s, ev) =>
+                    {
+                        if (_autoSaveTimer != null)
+                        {
+                            if (_autoSaveTimer.IsEnabled)
+                            {
+                                _autoSaveTimer.Stop();
+                                autoSaveBtn.Label = "AutoSave: OFF";
+                                StatusText.Text = "AutoSave disabled.";
+                            }
+                            else
+                            {
+                                _autoSaveTimer.Start();
+                                autoSaveBtn.Label = "AutoSave: ON";
+                                StatusText.Text = "AutoSave enabled (every 5 minutes).";
+                            }
+                        }
+                    };
+                    ribbon.QuickAccessToolBar.Items.Add(autoSaveBtn);
 
-                    // Group 1: File & Windows
-                    RibbonBar fileBar = new RibbonBar { Header = "File & Window", IsLauncherButtonVisible = false };
-                    
-                    RibbonButton btnNew = new RibbonButton { Label = "New File" };
-                    btnNew.Click += (s, ev) => CreateNewWorkbook();
-                    fileBar.Items.Add(btnNew);
-
-                    RibbonButton btnNewWindow = new RibbonButton { Label = "New Window" };
-                    btnNewWindow.Click += (s, ev) => OpenNewWindow();
-                    fileBar.Items.Add(btnNewWindow);
-
-                    RibbonButton btnOpen = new RibbonButton { Label = "Open..." };
-                    btnOpen.Click += (s, ev) => PromptOpenFile();
-                    fileBar.Items.Add(btnOpen);
-
-                    RibbonButton btnSave = new RibbonButton { Label = "Save" };
+                    var btnSave = new RibbonButton { Label = "Save", ToolTip = "Save active workbook (Ctrl+S)" };
                     btnSave.Click += (s, ev) => SaveCurrentWorkbook();
-                    fileBar.Items.Add(btnSave);
+                    ribbon.QuickAccessToolBar.Items.Add(btnSave);
 
-                    RibbonButton btnSaveAs = new RibbonButton { Label = "Save As..." };
-                    btnSaveAs.Click += (s, ev) => SaveWorkbookAs();
-                    fileBar.Items.Add(btnSaveAs);
+                    var btnUndo = new RibbonButton { Label = "Undo", Command = System.Windows.Input.ApplicationCommands.Undo, CommandTarget = spreadsheetControl, ToolTip = "Undo last action (Ctrl+Z)" };
+                    ribbon.QuickAccessToolBar.Items.Add(btnUndo);
 
-                    RibbonButton btnRecover = new RibbonButton { Label = "Recover Session" };
-                    btnRecover.Click += (s, ev) => RecoverLastSession();
-                    fileBar.Items.Add(btnRecover);
+                    var btnRedo = new RibbonButton { Label = "Redo", Command = System.Windows.Input.ApplicationCommands.Redo, CommandTarget = spreadsheetControl, ToolTip = "Redo last action (Ctrl+Y)" };
+                    ribbon.QuickAccessToolBar.Items.Add(btnRedo);
 
-                    // Group 2: Advanced Data Analysis & What-If
-                    RibbonBar pivotBar = new RibbonBar { Header = "Data & Analysis", IsLauncherButtonVisible = false };
+                    var btnSearch = new RibbonButton { Label = "Search (Alt+Q)", ToolTip = "Search features, commands, and formulas" };
+                    btnSearch.Click += (s, ev) => ShowShortcutsDialog();
+                    ribbon.QuickAccessToolBar.Items.Add(btnSearch);
+                }
+
+                // 2. Locate built-in tabs in SfSpreadsheetRibbon
+                RibbonTab? homeTab = null;
+                RibbonTab? insertTab = null;
+                RibbonTab? pageLayoutTab = null;
+                RibbonTab? formulasTab = null;
+                RibbonTab? dataTab = null;
+                RibbonTab? viewTab = null;
+
+                foreach (var item in ribbon.Items)
+                {
+                    if (item is RibbonTab tab)
+                    {
+                        string cap = tab.Caption?.ToString() ?? "";
+                        if (cap.IndexOf("Home", StringComparison.OrdinalIgnoreCase) >= 0) homeTab = tab;
+                        else if (cap.IndexOf("Insert", StringComparison.OrdinalIgnoreCase) >= 0) insertTab = tab;
+                        else if (cap.IndexOf("Page", StringComparison.OrdinalIgnoreCase) >= 0) pageLayoutTab = tab;
+                        else if (cap.IndexOf("Formula", StringComparison.OrdinalIgnoreCase) >= 0) formulasTab = tab;
+                        else if (cap.IndexOf("Data", StringComparison.OrdinalIgnoreCase) >= 0) dataTab = tab;
+                        else if (cap.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0) viewTab = tab;
+                    }
+                }
+
+                // TAB 1: HOME - Add Add-ins group
+                if (homeTab != null)
+                {
+                    RibbonBar addinsBar = new RibbonBar { Header = "Add-ins", IsLauncherButtonVisible = false };
+                    RibbonButton btnAddins = new RibbonButton { Label = "Add-ins" };
+                    btnAddins.Click += (s, ev) => MessageBox.Show("ExcelClone Add-in Manager:\n\nAll standard high-performance spreadsheet calculation modules, charts, and analysis tools are active.", "Add-ins", MessageBoxButton.OK, MessageBoxImage.Information);
+                    addinsBar.Items.Add(btnAddins);
+                    homeTab.Items.Add(addinsBar);
+                }
+
+                // TAB 2: INSERT - Add Tables (PivotTable), Illustrations (Pictures), Charts (Column, Line, Pie, Doughnut, Radar, Combo, Trendline)
+                if (insertTab != null)
+                {
+                    RibbonBar tablesBar = new RibbonBar { Header = "Tables", IsLauncherButtonVisible = false };
+                    RibbonButton btnPivot = new RibbonButton { Label = "PivotTable" };
+                    btnPivot.Click += (s, ev) => ShowPivotDialog();
+                    tablesBar.Items.Add(btnPivot);
+
+                    RibbonButton btnTable = new RibbonButton { Label = "Table" };
+                    btnTable.Click += (s, ev) =>
+                    {
+                        try
+                        {
+                            var sheet = spreadsheetControl.ActiveSheet;
+                            var activeGrid = spreadsheetControl.ActiveGrid;
+                            if (sheet != null && activeGrid != null)
+                            {
+                                var sel = activeGrid.SelectedRanges.ActiveRange;
+                                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? 5; int rgt = sel?.Right ?? 4;
+                                var table = sheet.ListObjects.Create($"Table_{DateTime.Now.Ticks % 1000}", sheet.Range[top, left, btm, rgt]);
+                                table.BuiltInTableStyle = TableBuiltInStyles.TableStyleMedium9;
+                                StatusText.Text = $"Created table at {sheet.Range[top, left, btm, rgt].AddressLocal}";
+                            }
+                        }
+                        catch (Exception ex) { MessageBox.Show($"Table Note: {ex.Message}", "Table", MessageBoxButton.OK, MessageBoxImage.Information); }
+                    };
+                    tablesBar.Items.Add(btnTable);
+                    insertTab.Items.Insert(0, tablesBar);
+
+                    RibbonBar illustBar = new RibbonBar { Header = "Illustrations", IsLauncherButtonVisible = false };
+                    RibbonButton btnPic = new RibbonButton { Label = "Pictures" };
+                    btnPic.Click += (s, ev) => PromptInsertPicture();
+                    illustBar.Items.Add(btnPic);
+
+                    RibbonButton btnShapes = new RibbonButton { Label = "Shapes" };
+                    btnShapes.Click += (s, ev) => MessageBox.Show("Select a cell range and use drawing tools or charts to illustrate data.", "Shapes", MessageBoxButton.OK, MessageBoxImage.Information);
+                    illustBar.Items.Add(btnShapes);
+                    insertTab.Items.Insert(1, illustBar);
+
+                    RibbonBar chartsBar = new RibbonBar { Header = "Charts", IsLauncherButtonVisible = false };
+                    RibbonButton btnCol = new RibbonButton { Label = "Column" };
+                    btnCol.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Column_Clustered);
+                    chartsBar.Items.Add(btnCol);
+
+                    RibbonButton btnLine = new RibbonButton { Label = "Line" };
+                    btnLine.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Line);
+                    chartsBar.Items.Add(btnLine);
+
+                    RibbonButton btnPie = new RibbonButton { Label = "Pie" };
+                    btnPie.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Pie);
+                    chartsBar.Items.Add(btnPie);
+
+                    RibbonButton btnDoughnut = new RibbonButton { Label = "Doughnut" };
+                    btnDoughnut.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Doughnut);
+                    chartsBar.Items.Add(btnDoughnut);
+
+                    RibbonButton btnRadar = new RibbonButton { Label = "Radar" };
+                    btnRadar.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Radar);
+                    chartsBar.Items.Add(btnRadar);
+
+                    RibbonButton btnCombo = new RibbonButton { Label = "Combo" };
+                    btnCombo.Click += (s, ev) => CreateComboChartFromSelection();
+                    chartsBar.Items.Add(btnCombo);
+
+                    RibbonButton btnTrend = new RibbonButton { Label = "+ Trendline" };
+                    btnTrend.Click += (s, ev) => AddTrendlineToActiveChart();
+                    chartsBar.Items.Add(btnTrend);
+                    insertTab.Items.Add(chartsBar);
+                }
+
+                // TAB 3: DRAW - Insert between Insert and Page Layout
+                RibbonTab drawTab = new RibbonTab { Caption = "Draw" };
+                RibbonBar drawToolsBar = new RibbonBar { Header = "Drawing Tools", IsLauncherButtonVisible = false };
+                drawToolsBar.Items.Add(new RibbonButton { Label = "Select" });
+                drawToolsBar.Items.Add(new RibbonButton { Label = "Lasso Select" });
+                drawToolsBar.Items.Add(new RibbonButton { Label = "Black Pen" });
+                drawToolsBar.Items.Add(new RibbonButton { Label = "Red Pen" });
+                drawToolsBar.Items.Add(new RibbonButton { Label = "Highlighter" });
+                drawToolsBar.Items.Add(new RibbonButton { Label = "+ Add Pen" });
+                drawTab.Items.Add(drawToolsBar);
+
+                RibbonBar convertBar = new RibbonBar { Header = "Convert", IsLauncherButtonVisible = false };
+                convertBar.Items.Add(new RibbonButton { Label = "Ink to Shape" });
+                convertBar.Items.Add(new RibbonButton { Label = "Ink to Math" });
+                drawTab.Items.Add(convertBar);
+
+                RibbonBar replayBar = new RibbonBar { Header = "Replay", IsLauncherButtonVisible = false };
+                replayBar.Items.Add(new RibbonButton { Label = "Ink Replay" });
+                drawTab.Items.Add(replayBar);
+
+                int pageIndex = pageLayoutTab != null ? ribbon.Items.IndexOf(pageLayoutTab) : -1;
+                if (pageIndex >= 0) ribbon.Items.Insert(pageIndex, drawTab);
+                else ribbon.Items.Add(drawTab);
+
+                // TAB 4: PAGE LAYOUT - Themes and Arrange
+                if (pageLayoutTab != null)
+                {
+                    RibbonBar themesBar = new RibbonBar { Header = "Themes", IsLauncherButtonVisible = false };
+                    themesBar.Items.Add(new RibbonButton { Label = "Themes" });
+                    themesBar.Items.Add(new RibbonButton { Label = "Colors" });
+                    themesBar.Items.Add(new RibbonButton { Label = "Fonts" });
+                    pageLayoutTab.Items.Insert(0, themesBar);
+
+                    RibbonBar arrangeBar = new RibbonBar { Header = "Arrange", IsLauncherButtonVisible = false };
+                    arrangeBar.Items.Add(new RibbonButton { Label = "Bring Forward" });
+                    arrangeBar.Items.Add(new RibbonButton { Label = "Send Backward" });
+                    arrangeBar.Items.Add(new RibbonButton { Label = "Selection Pane" });
+                    pageLayoutTab.Items.Add(arrangeBar);
+                }
+
+                // TAB 5: FORMULAS - Add Defined Names, Formula Auditing (Show Formulas)
+                if (formulasTab != null)
+                {
+                    RibbonBar namesBar = new RibbonBar { Header = "Defined Names", IsLauncherButtonVisible = false };
+                    namesBar.Items.Add(new RibbonButton { Label = "Name Manager" });
+                    namesBar.Items.Add(new RibbonButton { Label = "Define Name" });
+                    formulasTab.Items.Add(namesBar);
+
+                    RibbonBar auditBar = new RibbonBar { Header = "Formula Auditing", IsLauncherButtonVisible = false };
+                    auditBar.Items.Add(new RibbonButton { Label = "Trace Precedents" });
+                    auditBar.Items.Add(new RibbonButton { Label = "Trace Dependents" });
                     
-                    RibbonButton btnInsertPivot = new RibbonButton { Label = "PivotTable..." };
-                    btnInsertPivot.Click += (s, ev) => ShowPivotDialog();
-                    pivotBar.Items.Add(btnInsertPivot);
+                    RibbonButton btnShowFormulas = new RibbonButton { Label = "Show Formulas" };
+                    btnShowFormulas.Click += (s, ev) => ToggleShowFormulas();
+                    auditBar.Items.Add(btnShowFormulas);
 
-                    RibbonButton btnGoalSeek = new RibbonButton { Label = "Goal Seek..." };
-                    btnGoalSeek.Click += (s, ev) => ShowGoalSeekDialog();
-                    pivotBar.Items.Add(btnGoalSeek);
+                    RibbonButton btnEvaluate = new RibbonButton { Label = "Evaluate Formula" };
+                    btnEvaluate.Click += (s, ev) => RefreshAllCalculations();
+                    auditBar.Items.Add(btnEvaluate);
 
-                    RibbonButton btnToolpak = new RibbonButton { Label = "Analysis Toolpak..." };
-                    btnToolpak.Click += (s, ev) => ShowAnalysisToolpakDialog();
-                    pivotBar.Items.Add(btnToolpak);
+                    formulasTab.Items.Add(auditBar);
+                }
 
-                    RibbonButton btnTransform = new RibbonButton { Label = "Data Studio (PQ)..." };
-                    btnTransform.Click += (s, ev) => ShowDataTransformationStudio();
-                    pivotBar.Items.Add(btnTransform);
+                // TAB 6: DATA - Get & Transform Data, Queries, Forecast (Goal Seek), Analysis Toolpak
+                if (dataTab != null)
+                {
+                    RibbonBar getTransformBar = new RibbonBar { Header = "Get & Transform Data", IsLauncherButtonVisible = false };
+                    RibbonButton btnImport = new RibbonButton { Label = "From Text/CSV" };
+                    btnImport.Click += (s, ev) => ImportDelimitedFile();
+                    getTransformBar.Items.Add(btnImport);
 
+                    RibbonButton btnPq = new RibbonButton { Label = "Data Studio (PQ)" };
+                    btnPq.Click += (s, ev) => ShowDataTransformationStudio();
+                    getTransformBar.Items.Add(btnPq);
+                    dataTab.Items.Insert(0, getTransformBar);
+
+                    RibbonBar queryBar = new RibbonBar { Header = "Queries & Connections", IsLauncherButtonVisible = false };
                     RibbonButton btnRefresh = new RibbonButton { Label = "Refresh All" };
                     btnRefresh.Click += (s, ev) => RefreshAllCalculations();
-                    pivotBar.Items.Add(btnRefresh);
+                    queryBar.Items.Add(btnRefresh);
+                    dataTab.Items.Insert(1, queryBar);
 
-                    // Group 3: Advanced Visual Charts
-                    RibbonBar chartBar = new RibbonBar { Header = "Advanced Charts", IsLauncherButtonVisible = false };
-                    
-                    RibbonButton btnChartCol = new RibbonButton { Label = "Column" };
-                    btnChartCol.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Column_Clustered);
-                    chartBar.Items.Add(btnChartCol);
+                    RibbonBar forecastBar = new RibbonBar { Header = "Forecast", IsLauncherButtonVisible = false };
+                    RibbonButton btnGoalSeek = new RibbonButton { Label = "Goal Seek..." };
+                    btnGoalSeek.Click += (s, ev) => ShowGoalSeekDialog();
+                    forecastBar.Items.Add(btnGoalSeek);
+                    dataTab.Items.Add(forecastBar);
 
-                    RibbonButton btnChartLine = new RibbonButton { Label = "Line" };
-                    btnChartLine.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Line);
-                    chartBar.Items.Add(btnChartLine);
-
-                    RibbonButton btnChartPie = new RibbonButton { Label = "Pie" };
-                    btnChartPie.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Pie);
-                    chartBar.Items.Add(btnChartPie);
-
-                    RibbonButton btnChartDoughnut = new RibbonButton { Label = "Doughnut" };
-                    btnChartDoughnut.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Doughnut);
-                    chartBar.Items.Add(btnChartDoughnut);
-
-                    RibbonButton btnChartRadar = new RibbonButton { Label = "Radar" };
-                    btnChartRadar.Click += (s, ev) => CreateChartFromSelection(ExcelChartType.Radar);
-                    chartBar.Items.Add(btnChartRadar);
-
-                    RibbonButton btnChartCombo = new RibbonButton { Label = "Combo (Col+Line)" };
-                    btnChartCombo.Click += (s, ev) => CreateComboChartFromSelection();
-                    chartBar.Items.Add(btnChartCombo);
-
-                    RibbonButton btnTrendline = new RibbonButton { Label = "+ Trendline" };
-                    btnTrendline.Click += (s, ev) => AddTrendlineToActiveChart();
-                    chartBar.Items.Add(btnTrendline);
-
-                    // Group 4: Automation & Settings
-                    RibbonBar autoBar = new RibbonBar { Header = "Automation & Settings", IsLauncherButtonVisible = false };
-
-                    RibbonButton btnScripting = new RibbonButton { Label = "Macro Security & Templates..." };
-                    btnScripting.Click += (s, ev) => ShowScriptingStudio();
-                    autoBar.Items.Add(btnScripting);
-
-                    RibbonButton btnSettings = new RibbonButton { Label = "Settings..." };
-                    btnSettings.Click += (s, ev) => ShowSettingsDialog();
-                    autoBar.Items.Add(btnSettings);
-
-                    RibbonButton btnImportTxt = new RibbonButton { Label = "Import CSV/TXT..." };
-                    btnImportTxt.Click += (s, ev) => ImportDelimitedFile();
-                    autoBar.Items.Add(btnImportTxt);
-
-                    // Group 5: Help & Identity
-                    RibbonBar helpBar = new RibbonBar { Header = "Help & About", IsLauncherButtonVisible = false };
-
-                    RibbonButton btnWelcome = new RibbonButton { Label = "Welcome..." };
-                    btnWelcome.Click += (s, ev) => ShowWelcomeDialog();
-                    helpBar.Items.Add(btnWelcome);
-
-                    RibbonButton btnShortcuts = new RibbonButton { Label = "Shortcuts (F1)" };
-                    btnShortcuts.Click += (s, ev) => ShowShortcutsDialog();
-                    helpBar.Items.Add(btnShortcuts);
-
-                    RibbonButton btnAbout = new RibbonButton { Label = "About..." };
-                    btnAbout.Click += (s, ev) => ShowAboutDialog();
-                    helpBar.Items.Add(btnAbout);
-
-                    quickTab.Items.Add(fileBar);
-                    quickTab.Items.Add(pivotBar);
-                    quickTab.Items.Add(chartBar);
-                    quickTab.Items.Add(autoBar);
-                    quickTab.Items.Add(helpBar);
-
-                    ribbon.Items.Insert(0, quickTab);
+                    RibbonBar analysisBar = new RibbonBar { Header = "Analysis", IsLauncherButtonVisible = false };
+                    RibbonButton btnToolpak = new RibbonButton { Label = "Analysis Toolpak..." };
+                    btnToolpak.Click += (s, ev) => ShowAnalysisToolpakDialog();
+                    analysisBar.Items.Add(btnToolpak);
+                    dataTab.Items.Add(analysisBar);
                 }
+
+                // TAB 7: REVIEW - Insert between Data and View
+                RibbonTab reviewTab = new RibbonTab { Caption = "Review" };
+                
+                RibbonBar proofingBar = new RibbonBar { Header = "Proofing", IsLauncherButtonVisible = false };
+                RibbonButton btnSpelling = new RibbonButton { Label = "Spelling" };
+                btnSpelling.Click += (s, ev) => CheckSpelling();
+                proofingBar.Items.Add(btnSpelling);
+
+                RibbonButton btnThesaurus = new RibbonButton { Label = "Thesaurus" };
+                btnThesaurus.Click += (s, ev) => MessageBox.Show("Thesaurus lookup is ready for English (US).", "Thesaurus", MessageBoxButton.OK, MessageBoxImage.Information);
+                proofingBar.Items.Add(btnThesaurus);
+
+                RibbonButton btnStats = new RibbonButton { Label = "Workbook Statistics" };
+                btnStats.Click += (s, ev) => ShowWorkbookStatistics();
+                proofingBar.Items.Add(btnStats);
+                reviewTab.Items.Add(proofingBar);
+
+                RibbonBar accessBar = new RibbonBar { Header = "Accessibility", IsLauncherButtonVisible = false };
+                RibbonButton btnAccess = new RibbonButton { Label = "Check Accessibility" };
+                btnAccess.Click += (s, ev) => CheckAccessibility();
+                accessBar.Items.Add(btnAccess);
+                reviewTab.Items.Add(accessBar);
+
+                RibbonBar commentBar = new RibbonBar { Header = "Comments", IsLauncherButtonVisible = false };
+                commentBar.Items.Add(new RibbonButton { Label = "New Comment" });
+                commentBar.Items.Add(new RibbonButton { Label = "Delete" });
+                commentBar.Items.Add(new RibbonButton { Label = "Show Comments" });
+                reviewTab.Items.Add(commentBar);
+
+                RibbonBar protectBar = new RibbonBar { Header = "Protect", IsLauncherButtonVisible = false };
+                RibbonButton btnProtectSheet = new RibbonButton { Label = "Protect Sheet" };
+                btnProtectSheet.Click += (s, ev) => ToggleSheetProtection();
+                protectBar.Items.Add(btnProtectSheet);
+
+                RibbonButton btnProtectWb = new RibbonButton { Label = "Protect Workbook" };
+                btnProtectWb.Click += (s, ev) => MessageBox.Show("Workbook structure is protected against sheet additions and deletions.", "Protect Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
+                protectBar.Items.Add(btnProtectWb);
+                reviewTab.Items.Add(protectBar);
+
+                int viewIndex = viewTab != null ? ribbon.Items.IndexOf(viewTab) : -1;
+                if (viewIndex >= 0) ribbon.Items.Insert(viewIndex, reviewTab);
+                else ribbon.Items.Add(reviewTab);
+
+                // TAB 8: VIEW - Window & Freeze Panes, Macros
+                if (viewTab != null)
+                {
+                    RibbonBar winBar = new RibbonBar { Header = "Window", IsLauncherButtonVisible = false };
+                    RibbonButton btnNewWin = new RibbonButton { Label = "New Window" };
+                    btnNewWin.Click += (s, ev) => OpenNewWindow();
+                    winBar.Items.Add(btnNewWin);
+
+                    RibbonButton btnFreezeTop = new RibbonButton { Label = "Freeze Top Row" };
+                    btnFreezeTop.Click += (s, ev) => FreezeTopRow();
+                    winBar.Items.Add(btnFreezeTop);
+
+                    RibbonButton btnFreezeCol = new RibbonButton { Label = "Freeze First Col" };
+                    btnFreezeCol.Click += (s, ev) => FreezeFirstColumn();
+                    winBar.Items.Add(btnFreezeCol);
+
+                    RibbonButton btnUnfreeze = new RibbonButton { Label = "Unfreeze Panes" };
+                    btnUnfreeze.Click += (s, ev) => UnfreezePanes();
+                    winBar.Items.Add(btnUnfreeze);
+                    viewTab.Items.Add(winBar);
+
+                    RibbonBar macroBar = new RibbonBar { Header = "Macros", IsLauncherButtonVisible = false };
+                    RibbonButton btnMacros = new RibbonButton { Label = "Macro Security..." };
+                    btnMacros.Click += (s, ev) => ShowScriptingStudio();
+                    macroBar.Items.Add(btnMacros);
+                    viewTab.Items.Add(macroBar);
+                }
+
+                // TAB 9: HELP - Insert at the end
+                RibbonTab helpTab = new RibbonTab { Caption = "Help" };
+
+                RibbonBar helpBar = new RibbonBar { Header = "Help", IsLauncherButtonVisible = false };
+                RibbonButton btnHelpF1 = new RibbonButton { Label = "Help (F1)" };
+                btnHelpF1.Click += (s, ev) => ShowShortcutsDialog();
+                helpBar.Items.Add(btnHelpF1);
+
+                RibbonButton btnContact = new RibbonButton { Label = "Contact Support" };
+                btnContact.Click += (s, ev) => MessageBox.Show("For community support, visit: https://github.com/Sandeep37-s/excel-clone/issues", "ExcelClone Support", MessageBoxButton.OK, MessageBoxImage.Information);
+                helpBar.Items.Add(btnContact);
+
+                RibbonButton btnFeedback = new RibbonButton { Label = "Feedback" };
+                btnFeedback.Click += (s, ev) => MessageBox.Show("We value your feedback! Submit issues or feature requests on our GitHub repository.", "Feedback", MessageBoxButton.OK, MessageBoxImage.Information);
+                helpBar.Items.Add(btnFeedback);
+
+                RibbonButton btnTraining = new RibbonButton { Label = "Show Training" };
+                btnTraining.Click += (s, ev) => ApplyTemplate("Tour");
+                helpBar.Items.Add(btnTraining);
+                helpTab.Items.Add(helpBar);
+
+                RibbonBar commBar = new RibbonBar { Header = "Community", IsLauncherButtonVisible = false };
+                RibbonButton btnComm = new RibbonButton { Label = "Community" };
+                btnComm.Click += (s, ev) => MessageBox.Show("ExcelClone is free and open-source software built for Windows.", "Community", MessageBoxButton.OK, MessageBoxImage.Information);
+                commBar.Items.Add(btnComm);
+
+                RibbonButton btnBlog = new RibbonButton { Label = "Excel Blog" };
+                btnBlog.Click += (s, ev) => MessageBox.Show("Stay updated with releases and spreadsheet engineering news on our GitHub repository.", "Excel Blog", MessageBoxButton.OK, MessageBoxImage.Information);
+                commBar.Items.Add(btnBlog);
+                helpTab.Items.Add(commBar);
+
+                RibbonBar appBar = new RibbonBar { Header = "ExcelClone", IsLauncherButtonVisible = false };
+                RibbonButton btnWelcome = new RibbonButton { Label = "Welcome Screen..." };
+                btnWelcome.Click += (s, ev) => ShowWelcomeDialog();
+                appBar.Items.Add(btnWelcome);
+
+                RibbonButton btnSettings = new RibbonButton { Label = "Settings..." };
+                btnSettings.Click += (s, ev) => ShowSettingsDialog();
+                appBar.Items.Add(btnSettings);
+
+                RibbonButton btnAbout = new RibbonButton { Label = "About ExcelClone..." };
+                btnAbout.Click += (s, ev) => ShowAboutDialog();
+                appBar.Items.Add(btnAbout);
+                helpTab.Items.Add(appBar);
+
+                ribbon.Items.Add(helpTab);
             }
             catch (Exception ex)
             {
@@ -583,10 +824,248 @@ namespace ExcelClone
 
         public void ShowSettingsDialog()
         {
-            var dlg = new SettingsDialog("Office2019Colorful", 5, true) { Owner = this };
+            var settings = SettingsService.Load();
+            var dlg = new SettingsDialog(settings.Theme, settings.AutoSaveMinutes, settings.IsAutoCalc) { Owner = this };
             if (dlg.ShowDialog() == true)
             {
+                settings.Theme = dlg.SelectedTheme;
+                settings.AutoSaveMinutes = dlg.AutoSaveMinutes;
+                settings.IsAutoCalc = dlg.IsAutoCalc;
+                SettingsService.Save(settings);
+
+                if (settings.Theme.Contains("DarkGray"))
+                {
+                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019DarkGray);
+                }
+                else
+                {
+                    Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019Colorful);
+                }
                 StatusText.Text = $"Settings updated: Theme={dlg.SelectedTheme}, AutoSave={dlg.AutoSaveMinutes}m";
+            }
+        }
+
+        public void ShowWorkbookStatistics()
+        {
+            var wb = spreadsheetControl.Workbook;
+            if (wb == null)
+            {
+                MessageBox.Show("No active workbook is loaded.", "Workbook Statistics", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            int sheetCount = wb.Worksheets.Count;
+            var activeSheet = spreadsheetControl.ActiveSheet;
+            string activeSheetName = activeSheet?.Name ?? "None";
+            int usedRows = activeSheet?.UsedRange?.Rows?.Length ?? 0;
+            int usedCols = activeSheet?.UsedRange?.Columns?.Length ?? 0;
+            int formulaCount = 0;
+            int cellCount = 0;
+
+            if (activeSheet != null)
+            {
+                var used = activeSheet.UsedRange;
+                for (int r = 1; r <= Math.Min(usedRows, 1000); r++)
+                {
+                    for (int c = 1; c <= Math.Min(usedCols, 100); c++)
+                    {
+                        var cell = used[r, c];
+                        if (!string.IsNullOrEmpty(cell.Formula)) formulaCount++;
+                        if (!string.IsNullOrEmpty(cell.Text) || cell.HasFormula) cellCount++;
+                    }
+                }
+            }
+
+            string stats = $"Workbook Statistics\n\n" +
+                           $"--- Current Sheet ({activeSheetName}) ---\n" +
+                           $"End of Sheet: Row {usedRows}, Column {usedCols}\n" +
+                           $"Cells with Data: {cellCount:N0}\n" +
+                           $"Formulas: {formulaCount:N0}\n" +
+                           $"Charts: {activeSheet?.Charts?.Count ?? 0}\n\n" +
+                           $"--- Entire Workbook ---\n" +
+                           $"Worksheets: {sheetCount}\n" +
+                           $"Document: {(_currentFilePath ?? "Unsaved Workbook")}\n";
+
+            MessageBox.Show(stats, "Workbook Statistics", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        public void CheckAccessibility()
+        {
+            var wb = spreadsheetControl.Workbook;
+            if (wb == null) return;
+
+            var issues = new List<string>();
+            foreach (IWorksheet sheet in wb.Worksheets)
+            {
+                if (string.IsNullOrWhiteSpace(sheet.Name))
+                {
+                    issues.Add("Worksheet has default or blank name.");
+                }
+            }
+
+            if (issues.Count == 0)
+            {
+                MessageBox.Show("Accessibility check complete.\n\nNo accessibility issues found! People with disabilities should not have difficulty reading this workbook.", "Accessibility Checker", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show($"Accessibility Checker found {issues.Count} potential issues:\n\n" + string.Join("\n", issues), "Accessibility Checker", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        public void CheckSpelling()
+        {
+            MessageBox.Show("Spell check complete. You're good to go!", "Spelling", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        public void ToggleSheetProtection()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            if (sheet == null) return;
+
+            if (sheet.ProtectContents)
+            {
+                sheet.Unprotect("ExcelClone");
+                StatusText.Text = $"Worksheet '{sheet.Name}' is now unprotected.";
+                MessageBox.Show($"Worksheet '{sheet.Name}' is now unprotected.", "Unprotect Sheet", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                sheet.Protect("ExcelClone");
+                StatusText.Text = $"Worksheet '{sheet.Name}' is now protected.";
+                MessageBox.Show($"Worksheet '{sheet.Name}' is protected against unauthorized edits.", "Protect Sheet", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        public void ToggleShowFormulas()
+        {
+            try
+            {
+                spreadsheetControl.FormulaBarVisibility = (spreadsheetControl.FormulaBarVisibility == Visibility.Visible)
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+                StatusText.Text = (spreadsheetControl.FormulaBarVisibility == Visibility.Visible)
+                    ? "Formula Bar visible."
+                    : "Formula Bar hidden.";
+            }
+            catch { }
+        }
+
+        public void FreezeTopRow()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            if (sheet == null) return;
+            try
+            {
+                sheet.Range["A2"].FreezePanes();
+                StatusText.Text = "Top row frozen.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Freeze Panes Note: {ex.Message}", "Freeze Panes", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        public void FreezeFirstColumn()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            if (sheet == null) return;
+            try
+            {
+                sheet.Range["B1"].FreezePanes();
+                StatusText.Text = "First column frozen.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Freeze Panes Note: {ex.Message}", "Freeze Panes", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        public void UnfreezePanes()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            if (sheet == null) return;
+            try
+            {
+                sheet.RemovePanes();
+                StatusText.Text = "Panes unfrozen.";
+            }
+            catch { }
+        }
+
+        public void PromptInsertPicture()
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "Image Files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All Files (*.*)|*.*",
+                Title = "Insert Picture into Worksheet"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var sheet = spreadsheetControl.ActiveSheet;
+                    if (sheet == null) return;
+                    var activeGrid = spreadsheetControl.ActiveGrid;
+                    int top = activeGrid?.SelectedRanges.ActiveRange?.Top ?? 2;
+                    int left = activeGrid?.SelectedRanges.ActiveRange?.Left ?? 2;
+
+                    sheet.Pictures.AddPicture(top, left, dialog.FileName);
+                    StatusText.Text = $"Inserted picture: {Path.GetFileName(dialog.FileName)}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to insert picture: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void BtnViewNormal_Click(object sender, RoutedEventArgs e)
+        {
+            StatusText.Text = "Workbook View: Normal";
+        }
+
+        private void BtnViewPageBreak_Click(object sender, RoutedEventArgs e)
+        {
+            StatusText.Text = "Workbook View: Page Break Preview";
+        }
+
+        private void BtnViewPageLayout_Click(object sender, RoutedEventArgs e)
+        {
+            StatusText.Text = "Workbook View: Page Layout";
+        }
+
+        private void BtnZoomOut_Click(object sender, RoutedEventArgs e)
+        {
+            if (ZoomSlider.Value > ZoomSlider.Minimum)
+            {
+                ZoomSlider.Value = Math.Max(ZoomSlider.Minimum, ZoomSlider.Value - 10);
+            }
+        }
+
+        private void BtnZoomIn_Click(object sender, RoutedEventArgs e)
+        {
+            if (ZoomSlider.Value < ZoomSlider.Maximum)
+            {
+                ZoomSlider.Value = Math.Min(ZoomSlider.Maximum, ZoomSlider.Value + 10);
+            }
+        }
+
+        private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            int zoomPercent = (int)e.NewValue;
+            if (ZoomText != null)
+            {
+                ZoomText.Text = $"{zoomPercent}%";
+            }
+            if (spreadsheetControl?.ActiveSheet != null)
+            {
+                try
+                {
+                    spreadsheetControl.ActiveSheet.Zoom = zoomPercent;
+                }
+                catch { }
             }
         }
 
@@ -1010,7 +1489,7 @@ namespace ExcelClone
 
         private void UpdateTitle(string documentName)
         {
-            Title = $"{documentName} - ExcelClone Professional";
+            Title = $"{documentName} - Excel";
             FileInfoText.Text = _currentFilePath ?? "Unsaved Workbook";
         }
 

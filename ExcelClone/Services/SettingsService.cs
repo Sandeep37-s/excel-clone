@@ -7,7 +7,7 @@ namespace ExcelClone.Services
 {
     public class UserSettings
     {
-        public string Theme { get; set; } = "Office2019Colorful";
+        public string Theme { get; set; } = "Office2019DarkGray";
         public int AutoSaveMinutes { get; set; } = 5;
         public bool IsAutoCalc { get; set; } = true;
         public List<string> RecentFiles { get; set; } = new();

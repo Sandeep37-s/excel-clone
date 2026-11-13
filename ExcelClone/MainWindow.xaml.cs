@@ -556,6 +556,8 @@ namespace ExcelClone
         {
             string newName = "Sheet" + (gridControl.Worksheets.Count + 1);
             var sheet = gridControl.CreateWorksheet(newName);
+            gridControl.AddWorksheet(sheet);
+            gridControl.CurrentWorksheet = sheet;
             WireSheetEvents(sheet);
             StatusText.Text = $"Created new worksheet: {newName}";
         }
@@ -1443,6 +1445,10 @@ namespace ExcelClone
             {
                 tb.Text = _autoSaveEnabled ? "On" : "Off";
             }
+            if (FindName("AutoSavePill") is Border pill)
+            {
+                pill.Background = _autoSaveEnabled ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x10, 0x7C, 0x41)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2B, 0x2B, 0x2B));
+            }
             if (FindName("AutoSaveThumb") is FrameworkElement thumb)
             {
                 thumb.HorizontalAlignment = _autoSaveEnabled ? System.Windows.HorizontalAlignment.Right : System.Windows.HorizontalAlignment.Left;
@@ -1640,6 +1646,278 @@ namespace ExcelClone
         private void BtnSearch_Click(object sender, RoutedEventArgs e)
         {
             BtnFind_Click(sender, e);
+        }
+
+        private void ChkGridlines_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            if (sender is CheckBox chk && chk.IsChecked == true)
+                sheet.SetSettings(WorksheetSettings.View_ShowGridLine, true);
+            else
+                sheet.DisableSettings(WorksheetSettings.View_ShowGridLine);
+            StatusText.Text = $"Gridlines {(sheet.HasSettings(WorksheetSettings.View_ShowGridLine) ? "visible" : "hidden")}.";
+        }
+
+        private void ChkHeadings_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            if (sender is CheckBox chk && chk.IsChecked == true)
+                sheet.SetSettings(WorksheetSettings.View_ShowHeaders, true);
+            else
+                sheet.DisableSettings(WorksheetSettings.View_ShowHeaders);
+            StatusText.Text = $"Headings {(sheet.HasSettings(WorksheetSettings.View_ShowHeaders) ? "visible" : "hidden")}.";
+        }
+
+        private void BtnIncreaseFontSize_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            int current = CmbFontSize.SelectedIndex >= 0 && int.TryParse(((ComboBoxItem)CmbFontSize.SelectedItem).Content.ToString(), out int sz) ? sz : 11;
+            int next = Math.Min(72, current + 2);
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.FontSize,
+                FontSize = next
+            });
+            StatusText.Text = $"Increased font size to {next}pt.";
+        }
+
+        private void BtnDecreaseFontSize_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            int current = CmbFontSize.SelectedIndex >= 0 && int.TryParse(((ComboBoxItem)CmbFontSize.SelectedItem).Content.ToString(), out int sz) ? sz : 11;
+            int next = Math.Max(8, current - 2);
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.FontSize,
+                FontSize = next
+            });
+            StatusText.Text = $"Decreased font size to {next}pt.";
+        }
+
+        private void BtnFontColorRed_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.TextColor,
+                TextColor = SolidColor.FromArgb(255, 192, 0, 0)
+            });
+            StatusText.Text = "Applied Red text color.";
+        }
+
+        private WorksheetRangeStyle? _copiedFormatStyle = null;
+        private void BtnFormatPainter_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            if (_copiedFormatStyle == null)
+            {
+                _copiedFormatStyle = sheet.GetRangeStyles(new RangePosition(sheet.FocusPos.Row, sheet.FocusPos.Col, 1, 1));
+                StatusText.Text = $"Format copied from {sheet.FocusPos.ToAddress()}. Select destination cells and click Format Painter again to apply.";
+            }
+            else
+            {
+                sheet.SetRangeStyles(sheet.SelectionRange, _copiedFormatStyle);
+                _copiedFormatStyle = null;
+                StatusText.Text = "Applied copied format to selection.";
+            }
+        }
+
+        private void BtnAlignTop_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.VerticalAlign,
+                VAlign = ReoGridVerAlign.Top
+            });
+            StatusText.Text = "Applied Top Vertical Alignment.";
+        }
+
+        private void BtnAlignMiddle_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.VerticalAlign,
+                VAlign = ReoGridVerAlign.Middle
+            });
+            StatusText.Text = "Applied Middle Vertical Alignment.";
+        }
+
+        private void BtnAlignBottom_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            sheet.SetRangeStyles(sheet.SelectionRange, new WorksheetRangeStyle
+            {
+                Flag = PlainStyleFlag.VerticalAlign,
+                VAlign = ReoGridVerAlign.Bottom
+            });
+            StatusText.Text = "Applied Bottom Vertical Alignment.";
+        }
+
+        private void BtnConditionalFormatting_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            var values = new List<double>();
+            for (int r = 0; r < sel.Rows; r++)
+                for (int c = 0; c < sel.Cols; c++)
+                    if (double.TryParse(sheet.Cells[sel.Row + r, sel.Col + c].Data?.ToString(), out double val))
+                        values.Add(val);
+
+            if (values.Count > 0)
+            {
+                double avg = values.Average();
+                for (int r = 0; r < sel.Rows; r++)
+                {
+                    for (int c = 0; c < sel.Cols; c++)
+                    {
+                        if (double.TryParse(sheet.Cells[sel.Row + r, sel.Col + c].Data?.ToString(), out double val))
+                        {
+                            if (val >= avg)
+                            {
+                                sheet.SetRangeStyles(new RangePosition(sel.Row + r, sel.Col + c, 1, 1), new WorksheetRangeStyle
+                                {
+                                    Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor,
+                                    BackColor = SolidColor.FromArgb(255, 198, 239, 206),
+                                    TextColor = SolidColor.FromArgb(255, 0, 97, 0)
+                                });
+                            }
+                            else
+                            {
+                                sheet.SetRangeStyles(new RangePosition(sel.Row + r, sel.Col + c, 1, 1), new WorksheetRangeStyle
+                                {
+                                    Flag = PlainStyleFlag.BackColor | PlainStyleFlag.TextColor,
+                                    BackColor = SolidColor.FromArgb(255, 255, 199, 206),
+                                    TextColor = SolidColor.FromArgb(255, 156, 0, 6)
+                                });
+                            }
+                        }
+                    }
+                }
+                StatusText.Text = $"Applied Conditional Formatting (Above/Below Avg: {avg:N2}).";
+            }
+            else
+            {
+                StatusText.Text = "Select cells with numbers to apply Conditional Formatting.";
+            }
+        }
+
+        private void CmbNumberFormat_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (gridControl?.CurrentWorksheet == null || sender is not ComboBox cmb || cmb.SelectedItem is not ComboBoxItem item) return;
+            var sheet = gridControl.CurrentWorksheet;
+            string format = item.Content?.ToString() ?? "General";
+            var sel = sheet.SelectionRange;
+            for (int r = 0; r < sel.Rows; r++)
+            {
+                for (int c = 0; c < sel.Cols; c++)
+                {
+                    var cell = sheet.Cells[sel.Row + r, sel.Col + c];
+                    switch (format)
+                    {
+                        case "Currency":
+                        case "Accounting":
+                            cell.DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Currency;
+                            break;
+                        case "Percentage":
+                            cell.DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Percent;
+                            break;
+                        case "Number":
+                            cell.DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.Number;
+                            break;
+                        case "Short Date":
+                            cell.DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.DateTime;
+                            break;
+                        default:
+                            cell.DataFormat = unvell.ReoGrid.DataFormat.CellDataFormatFlag.General;
+                            break;
+                    }
+                }
+            }
+            if (StatusText != null)
+            {
+                StatusText.Text = $"Applied number format '{format}' to selection.";
+            }
+        }
+
+        private void BtnIncreaseDecimal_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            for (int r = 0; r < sel.Rows; r++)
+            {
+                for (int c = 0; c < sel.Cols; c++)
+                {
+                    var cell = sheet.Cells[sel.Row + r, sel.Col + c];
+                    if (cell.Data is double d)
+                    {
+                        cell.Data = Math.Round(d, 3);
+                    }
+                    else if (double.TryParse(cell.DisplayText, out double num))
+                    {
+                        cell.Data = Math.Round(num, 3);
+                    }
+                }
+            }
+            StatusText.Text = "Adjusted decimal precision to 3 places.";
+        }
+
+        private void BtnDecreaseDecimal_Click(object sender, RoutedEventArgs e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            var sel = sheet.SelectionRange;
+            for (int r = 0; r < sel.Rows; r++)
+            {
+                for (int c = 0; c < sel.Cols; c++)
+                {
+                    var cell = sheet.Cells[sel.Row + r, sel.Col + c];
+                    if (cell.Data is double d)
+                    {
+                        cell.Data = Math.Round(d, 0);
+                    }
+                    else if (double.TryParse(cell.DisplayText, out double num))
+                    {
+                        cell.Data = Math.Round(num, 0);
+                    }
+                }
+            }
+            StatusText.Text = "Rounded to whole numbers (0 decimals).";
+        }
+
+        private bool _isRibbonCollapsed = false;
+        private void BtnCollapseRibbon_Click(object sender, RoutedEventArgs e)
+        {
+            _isRibbonCollapsed = !_isRibbonCollapsed;
+            if (FindName("RibbonTabs") is TabControl tabControl)
+            {
+                tabControl.Height = _isRibbonCollapsed ? 31 : double.NaN;
+            }
+            StatusText.Text = _isRibbonCollapsed ? "Ribbon collapsed." : "Ribbon expanded.";
+        }
+
+        private void SliderZoom_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            var sheet = gridControl.CurrentWorksheet;
+            if (sheet == null) return;
+            float factor = (float)(e.NewValue / 100.0);
+            sheet.ScaleFactor = factor;
+            if (FindName("TxtZoomPercent") is TextBlock tb)
+            {
+                tb.Text = $"{(int)e.NewValue}%";
+            }
         }
     }
 }

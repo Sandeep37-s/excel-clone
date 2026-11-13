@@ -233,7 +233,7 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                         <TextBlock Text="AutoSave" Foreground="#E0E0E0" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
                         <Button Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" Click="BtnAutoSaveToggle_Click" ToolTip="Toggle AutoSave">
-                            <Border Width="34" Height="16" CornerRadius="8" Background="#2B2B2B" BorderBrush="#777777" BorderThickness="1">
+                            <Border x:Name="AutoSavePill" Width="34" Height="16" CornerRadius="8" Background="#107C41" BorderBrush="#777777" BorderThickness="1">
                                 <Border x:Name="AutoSaveThumb" Width="12" Height="12" CornerRadius="6" Background="#E0E0E0" HorizontalAlignment="Right" Margin="1,0"/>
                             </Border>
                         </Button>
@@ -296,7 +296,7 @@
         <!-- ROW 1: EXCEL 365 RIBBON TABS & CONTROLS                                   -->
         <!-- ========================================================================= -->
         <Grid Grid.Row="1">
-            <TabControl>
+            <TabControl x:Name="RibbonTabs">
             <!-- File Tab (Styled with File Operations Menu) -->
             <TabItem Header="File">
                 <TabItem.ContextMenu>
@@ -382,7 +382,7 @@
                                             <TextBlock Text="Copy" FontSize="10.5"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnCopy_Click" ToolTip="Format Painter">
+                                    <Button Style="{StaticResource RibbonSmallBtn}" Click="BtnFormatPainter_Click" ToolTip="Format Painter">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="🖌" FontSize="11" Margin="0,0,4,0"/>
                                             <TextBlock Text="Format Painter" FontSize="10.5"/>
@@ -421,10 +421,10 @@
                                         <ComboBoxItem Content="18"/>
                                         <ComboBoxItem Content="20"/>
                                     </ComboBox>
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Increase Font Size">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnIncreaseFontSize_Click" ToolTip="Increase Font Size">
                                         <TextBlock Text="A^" FontWeight="Bold" FontSize="10"/>
                                     </Button>
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Decrease Font Size">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnDecreaseFontSize_Click" ToolTip="Decrease Font Size">
                                         <TextBlock Text="Av" FontWeight="Bold" FontSize="9"/>
                                     </Button>
                                 </StackPanel>
@@ -446,7 +446,7 @@
                                     <Button Style="{StaticResource RibbonIconBtn}" Click="BtnFillYellow_Click" ToolTip="Fill Color (Yellow)">
                                         <TextBlock Text="🪣" FontSize="11"/>
                                     </Button>
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Font Color">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnFontColorRed_Click" ToolTip="Font Color (Red)">
                                         <TextBlock Text="A̲" FontWeight="Bold" Foreground="#C00000" FontSize="11"/>
                                     </Button>
                                 </StackPanel>
@@ -464,13 +464,13 @@
                             <StackPanel Grid.Row="0" VerticalAlignment="Center">
                                 <!-- Row 1: Top, Middle, Bottom Align + Orientation + Wrap Text -->
                                 <StackPanel Orientation="Horizontal" Margin="0,1,0,3">
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Top Align">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnAlignTop_Click" ToolTip="Top Align">
                                         <TextBlock Text="▔" FontSize="11"/>
                                     </Button>
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Middle Align">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnAlignMiddle_Click" ToolTip="Middle Align">
                                         <TextBlock Text="-" FontSize="12"/>
                                     </Button>
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Bottom Align">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnAlignBottom_Click" ToolTip="Bottom Align">
                                         <TextBlock Text=" " TextDecorations="Underline" FontSize="11"/>
                                     </Button>
                                     <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Orientation">
@@ -520,7 +520,7 @@
                             </Grid.RowDefinitions>
                             <StackPanel Grid.Row="0" VerticalAlignment="Center">
                                 <!-- Row 1: Number Format Dropdown -->
-                                <ComboBox Width="105" Height="22" SelectedIndex="0" Margin="0,1,0,3" VerticalContentAlignment="Center">
+                                <ComboBox x:Name="CmbNumberFormat" Width="105" Height="22" SelectedIndex="0" SelectionChanged="CmbNumberFormat_SelectionChanged" Margin="0,1,0,3" VerticalContentAlignment="Center">
                                     <ComboBoxItem Content="General"/>
                                     <ComboBoxItem Content="Number"/>
                                     <ComboBoxItem Content="Currency"/>
@@ -539,10 +539,10 @@
                                     <Button Style="{StaticResource RibbonIconBtn}" Click="BtnComma_Click" ToolTip="Comma Style (,)">
                                         <TextBlock Text="," FontWeight="Bold" FontSize="13"/>
                                     </Button>
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Increase Decimal">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnIncreaseDecimal_Click" ToolTip="Increase Decimal">
                                         <TextBlock Text=".00→" FontSize="9"/>
                                     </Button>
-                                    <Button Style="{StaticResource RibbonIconBtn}" ToolTip="Decrease Decimal">
+                                    <Button Style="{StaticResource RibbonIconBtn}" Click="BtnDecreaseDecimal_Click" ToolTip="Decrease Decimal">
                                         <TextBlock Text="←.0" FontSize="9"/>
                                     </Button>
                                 </StackPanel>
@@ -558,7 +558,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Style="{StaticResource RibbonBigBtn}" ToolTip="Conditional Formatting">
+                                <Button Style="{StaticResource RibbonBigBtn}" Click="BtnConditionalFormatting_Click" ToolTip="Conditional Formatting">
                                     <StackPanel HorizontalAlignment="Center">
                                         <TextBlock Text="📊" FontSize="20" HorizontalAlignment="Center"/>
                                         <TextBlock Text="Conditional&#x0a;Formatting ⌄" FontSize="10" TextAlignment="Center" Margin="0,1,0,0"/>
@@ -896,8 +896,8 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" VerticalAlignment="Center">
-                            <CheckBox Content="View Gridlines" IsChecked="True" Margin="2,2"/>
-                            <CheckBox Content="View Headings" IsChecked="True" Margin="2,2"/>
+                            <CheckBox Content="View Gridlines" IsChecked="True" Click="ChkGridlines_Click" Margin="2,2"/>
+                            <CheckBox Content="View Headings" IsChecked="True" Click="ChkHeadings_Click" Margin="2,2"/>
                         </StackPanel>
                         <TextBlock Grid.Row="1" Text="Sheet Options" Foreground="#555555" FontSize="9.5" HorizontalAlignment="Center" Margin="0,2,0,1"/>
                     </Grid>
@@ -1303,7 +1303,7 @@
                     <TextBlock Text="Share" FontWeight="SemiBold" FontSize="11"/>
                 </StackPanel>
             </Button>
-            <Button Style="{StaticResource QatBtn}" Width="24" Height="24" ToolTip="Collapse the Ribbon">
+            <Button Style="{StaticResource QatBtn}" Width="24" Height="24" Click="BtnCollapseRibbon_Click" ToolTip="Collapse / Expand Ribbon">
                 <TextBlock Text="⌃" Foreground="#A0A0A0" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Button>
         </StackPanel>
@@ -1409,14 +1409,14 @@
                         <TextBlock Text="—" Foreground="#CCCCCC" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Button>
 
-                    <Slider Width="90" Minimum="50" Maximum="200" Value="100" VerticalAlignment="Center" Margin="4,0"/>
+                    <Slider Width="90" Minimum="50" Maximum="200" Value="100" ValueChanged="SliderZoom_ValueChanged" VerticalAlignment="Center" Margin="4,0"/>
 
                     <Button Width="18" Height="18" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnZoomIn_Click" ToolTip="Zoom In">
                         <TextBlock Text="+" Foreground="#CCCCCC" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Button>
 
                     <Button Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnZoomReset_Click" ToolTip="Reset Zoom (100%)">
-                        <TextBlock Text="100%" Foreground="#FFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBlock x:Name="TxtZoomPercent" Text="100%" Foreground="#FFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0"/>
                     </Button>
                 </StackPanel>
             </Grid>

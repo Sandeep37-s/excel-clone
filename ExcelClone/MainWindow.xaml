@@ -26,10 +26,14 @@
                                         SfSpreadsheet="{Binding ElementName=spreadsheetControl}"
                                         Loaded="SpreadsheetRibbon_Loaded"/>
 
-        <!-- Native SfSpreadsheet Control (Grid, Formula Bar, Sheet Tabs, Context Menus) -->
-        <syncfusion:SfSpreadsheet Grid.Row="1"
-                                  x:Name="spreadsheetControl"
-                                  FormulaBarVisibility="Visible"/>
+        <!-- Native SfSpreadsheet Control (Grid, Formula Bar, Sheet Tabs, Context Menus) + Drawing Ink Overlay -->
+        <Grid Grid.Row="1">
+            <syncfusion:SfSpreadsheet x:Name="spreadsheetControl"
+                                      FormulaBarVisibility="Visible"/>
+            <InkCanvas x:Name="drawingCanvas"
+                       Visibility="Collapsed"
+                       Background="Transparent"/>
+        </Grid>
 
         <!-- Status Bar in Microsoft Excel Dark Mode -->
         <StatusBar Grid.Row="2" Background="#202020" BorderBrush="#333333" BorderThickness="0,1,0,0" Height="26">

@@ -13,6 +13,30 @@ namespace ExcelClone
     {
         protected override void OnStartup(StartupEventArgs e)
         {
+            // Register license key before any controls or windows initialize
+            try
+            {
+                string? licenseKey = Environment.GetEnvironmentVariable("SYNCFUSION_LICENSE_KEY");
+                string localAppDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone");
+                string localKeyFile = Path.Combine(localAppDir, "syncfusion_license.txt");
+                string baseKeyFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "syncfusion_license.txt");
+
+                if (string.IsNullOrWhiteSpace(licenseKey) && File.Exists(baseKeyFile))
+                {
+                    licenseKey = File.ReadAllText(baseKeyFile).Trim();
+                }
+                if (string.IsNullOrWhiteSpace(licenseKey) && File.Exists(localKeyFile))
+                {
+                    licenseKey = File.ReadAllText(localKeyFile).Trim();
+                }
+
+                if (!string.IsNullOrWhiteSpace(licenseKey))
+                {
+                    SyncfusionLicenseProvider.RegisterLicense(licenseKey);
+                }
+            }
+            catch { }
+
             AppDomain.CurrentDomain.AssemblyResolve += (sender, resolveArgs) =>
             {
                 if (resolveArgs.Name.StartsWith("System.Reflection.Metadata"))
@@ -34,22 +58,6 @@ namespace ExcelClone
             SfSkinManager.ApplyThemeAsDefaultStyle = true;
 
             base.OnStartup(e);
-
-            // Register license key from environment variable or local config if available
-            string? licenseKey = Environment.GetEnvironmentVariable("SYNCFUSION_LICENSE_KEY");
-            if (string.IsNullOrWhiteSpace(licenseKey))
-            {
-                string keyFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "syncfusion_license.txt");
-                if (File.Exists(keyFile))
-                {
-                    licenseKey = File.ReadAllText(keyFile).Trim();
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(licenseKey))
-            {
-                SyncfusionLicenseProvider.RegisterLicense(licenseKey);
-            }
         }
     }
 }

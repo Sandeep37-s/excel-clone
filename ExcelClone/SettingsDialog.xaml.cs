@@ -19,7 +19,7 @@ namespace ExcelClone
             AutoSaveMinutes = autoSaveMins;
             IsAutoCalc = isAutoCalc;
 
-            CmbTheme.SelectedIndex = currentTheme.Contains("DarkGray") ? 1 : 0;
+            CmbTheme.SelectedIndex = currentTheme.Contains("DarkGray") ? 0 : 1;
 
             if (autoSaveMins == 1) CmbAutoSave.SelectedIndex = 0;
             else if (autoSaveMins == 5) CmbAutoSave.SelectedIndex = 1;
@@ -27,6 +27,21 @@ namespace ExcelClone
             else CmbAutoSave.SelectedIndex = 3;
 
             CmbCalcMode.SelectedIndex = isAutoCalc ? 0 : 1;
+
+            try
+            {
+                string localKeyFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone", "syncfusion_license.txt");
+                string baseKeyFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "syncfusion_license.txt");
+                if (File.Exists(baseKeyFile))
+                {
+                    TxtLicenseKey.Text = File.ReadAllText(baseKeyFile).Trim();
+                }
+                else if (File.Exists(localKeyFile))
+                {
+                    TxtLicenseKey.Text = File.ReadAllText(localKeyFile).Trim();
+                }
+            }
+            catch { }
         }
 
         private void BtnOpenLogDir_Click(object sender, RoutedEventArgs e)
@@ -71,7 +86,7 @@ namespace ExcelClone
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            SelectedTheme = CmbTheme.SelectedIndex == 1 ? "Office2019DarkGray" : "Office2019Colorful";
+            SelectedTheme = CmbTheme.SelectedIndex == 0 ? "Office2019DarkGray" : "Office2019Colorful";
 
             switch (CmbAutoSave.SelectedIndex)
             {
@@ -82,6 +97,20 @@ namespace ExcelClone
             }
 
             IsAutoCalc = (CmbCalcMode.SelectedIndex == 0);
+
+            try
+            {
+                string key = TxtLicenseKey.Text.Trim();
+                if (!string.IsNullOrWhiteSpace(key))
+                {
+                    string localDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExcelClone");
+                    Directory.CreateDirectory(localDir);
+                    File.WriteAllText(Path.Combine(localDir, "syncfusion_license.txt"), key);
+                    File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "syncfusion_license.txt"), key);
+                    Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(key);
+                }
+            }
+            catch { }
 
             LoggingService.LogInfo($"Settings updated: Theme={SelectedTheme}, AutoSave={AutoSaveMinutes}m, AutoCalc={IsAutoCalc}");
             DialogResult = true;

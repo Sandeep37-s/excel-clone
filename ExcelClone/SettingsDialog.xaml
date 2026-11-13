@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -20,31 +21,34 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
-        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="CmbTheme" Height="26" Margin="0,0,0,14">
-            <ComboBoxItem Content="Office 2019 Colorful (Default)"/>
-            <ComboBoxItem Content="Office 2019 Dark Gray"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme:" VerticalAlignment="Center" Margin="0,0,0,12" FontSize="12" FontWeight="SemiBold"/>
+        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="CmbTheme" Height="26" Margin="0,0,0,12">
+            <ComboBoxItem Content="Office 2019 Dark Gray (Default)"/>
+            <ComboBoxItem Content="Office 2019 Colorful"/>
         </ComboBox>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Auto-Save Interval:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
-        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="CmbAutoSave" Height="26" Margin="0,0,0,14">
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Auto-Save Interval:" VerticalAlignment="Center" Margin="0,0,0,12" FontSize="12" FontWeight="SemiBold"/>
+        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="CmbAutoSave" Height="26" Margin="0,0,0,12">
             <ComboBoxItem Content="1 Minute"/>
             <ComboBoxItem Content="5 Minutes (Default)"/>
             <ComboBoxItem Content="10 Minutes"/>
             <ComboBoxItem Content="Disabled"/>
         </ComboBox>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Calculation Mode:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
-        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="CmbCalcMode" Height="26" Margin="0,0,0,14">
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Calculation Mode:" VerticalAlignment="Center" Margin="0,0,0,12" FontSize="12" FontWeight="SemiBold"/>
+        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="CmbCalcMode" Height="26" Margin="0,0,0,12">
             <ComboBoxItem Content="Automatic (Recalculate on Edit)"/>
             <ComboBoxItem Content="Manual (Recalculate on Demand)"/>
         </ComboBox>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Display &amp; DPI:" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12" FontWeight="SemiBold"/>
-        <TextBlock Grid.Row="3" Grid.Column="1" Text="Per-Monitor V2 High DPI Enabled" Foreground="#107C41" VerticalAlignment="Center" Margin="0,0,0,14" FontSize="12"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Display &amp; DPI:" VerticalAlignment="Center" Margin="0,0,0,12" FontSize="12" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="Per-Monitor V2 High DPI Enabled" Foreground="#107C41" VerticalAlignment="Center" Margin="0,0,0,12" FontSize="12"/>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="License Key:" VerticalAlignment="Center" Margin="0,0,0,12" FontSize="12" FontWeight="SemiBold"/>
+        <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtLicenseKey" Height="26" VerticalContentAlignment="Center" Margin="0,0,0,12" ToolTip="Free Syncfusion Community License Key"/>
 
         <!-- Log File Management -->
-        <Border Grid.Row="4" Grid.ColumnSpan="2" Background="#FFFFFF" BorderBrush="#D0D0D0" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,5,0,12">
+        <Border Grid.Row="5" Grid.ColumnSpan="2" Background="#FFFFFF" BorderBrush="#D0D0D0" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,5,0,12">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -59,7 +63,7 @@
         </Border>
 
         <!-- Actions -->
-        <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Save Settings" Width="100" Height="28" Margin="0,0,10,0" Background="#107C41" Foreground="White" FontWeight="SemiBold" IsDefault="True" Click="BtnSave_Click"/>
             <Button Content="Cancel" Width="80" Height="28" IsCancel="True"/>
         </StackPanel>

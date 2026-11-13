@@ -300,9 +300,15 @@ namespace ExcelClone
                     illustBar.Items.Add(btnPic);
 
                     RibbonButton btnShapes = new RibbonButton { Label = "Shapes" };
-                    btnShapes.Click += (s, ev) => MessageBox.Show("Select a cell range and use drawing tools or charts to illustrate data.", "Shapes", MessageBoxButton.OK, MessageBoxImage.Information);
+                    btnShapes.Click += (s, ev) => PromptInsertShape();
                     illustBar.Items.Add(btnShapes);
                     insertTab.Items.Insert(1, illustBar);
+
+                    RibbonBar linksBar = new RibbonBar { Header = "Links", IsLauncherButtonVisible = false };
+                    RibbonButton btnLink = new RibbonButton { Label = "Link" };
+                    btnLink.Click += (s, ev) => PromptInsertHyperlink();
+                    linksBar.Items.Add(btnLink);
+                    insertTab.Items.Insert(2, linksBar);
 
                     RibbonBar chartsBar = new RibbonBar { Header = "Charts", IsLauncherButtonVisible = false };
                     RibbonButton btnCol = new RibbonButton { Label = "Column" };
@@ -338,54 +344,91 @@ namespace ExcelClone
                 // TAB 3: DRAW - Insert between Insert and Page Layout
                 RibbonTab drawTab = new RibbonTab { Caption = "Draw" };
                 RibbonBar drawToolsBar = new RibbonBar { Header = "Drawing Tools", IsLauncherButtonVisible = false };
-                drawToolsBar.Items.Add(new RibbonButton { Label = "Select" });
-                drawToolsBar.Items.Add(new RibbonButton { Label = "Lasso Select" });
-                drawToolsBar.Items.Add(new RibbonButton { Label = "Black Pen" });
-                drawToolsBar.Items.Add(new RibbonButton { Label = "Red Pen" });
-                drawToolsBar.Items.Add(new RibbonButton { Label = "Highlighter" });
-                drawToolsBar.Items.Add(new RibbonButton { Label = "+ Add Pen" });
+                
+                RibbonButton btnDrawSelect = new RibbonButton { Label = "Select (Grid)" };
+                btnDrawSelect.Click += (s, ev) =>
+                {
+                    drawingCanvas.Visibility = Visibility.Collapsed;
+                    StatusText.Text = "Standard cell selection mode active.";
+                };
+                drawToolsBar.Items.Add(btnDrawSelect);
+
+                RibbonButton btnBlackPen = new RibbonButton { Label = "Black Pen" };
+                btnBlackPen.Click += (s, ev) => ActivatePenMode(System.Windows.Media.Colors.Black, 2.5);
+                drawToolsBar.Items.Add(btnBlackPen);
+
+                RibbonButton btnRedPen = new RibbonButton { Label = "Red Pen" };
+                btnRedPen.Click += (s, ev) => ActivatePenMode(System.Windows.Media.Colors.Red, 2.5);
+                drawToolsBar.Items.Add(btnRedPen);
+
+                RibbonButton btnHighlighter = new RibbonButton { Label = "Highlighter" };
+                btnHighlighter.Click += (s, ev) => ActivatePenMode(System.Windows.Media.Color.FromArgb(120, 255, 235, 59), 16.0);
+                drawToolsBar.Items.Add(btnHighlighter);
+
+                RibbonButton btnClearInk = new RibbonButton { Label = "Clear Drawing" };
+                btnClearInk.Click += (s, ev) =>
+                {
+                    drawingCanvas.Strokes.Clear();
+                    StatusText.Text = "Drawing canvas cleared.";
+                };
+                drawToolsBar.Items.Add(btnClearInk);
                 drawTab.Items.Add(drawToolsBar);
 
                 RibbonBar convertBar = new RibbonBar { Header = "Convert", IsLauncherButtonVisible = false };
-                convertBar.Items.Add(new RibbonButton { Label = "Ink to Shape" });
-                convertBar.Items.Add(new RibbonButton { Label = "Ink to Math" });
-                drawTab.Items.Add(convertBar);
+                RibbonButton btnInkShape = new RibbonButton { Label = "Ink to Shape" };
+                btnInkShape.Click += (s, ev) => PromptInsertShape();
+                convertBar.Items.Add(btnInkShape);
 
-                RibbonBar replayBar = new RibbonBar { Header = "Replay", IsLauncherButtonVisible = false };
-                replayBar.Items.Add(new RibbonButton { Label = "Ink Replay" });
-                drawTab.Items.Add(replayBar);
+                RibbonButton btnInkMath = new RibbonButton { Label = "Ink to Math" };
+                btnInkMath.Click += (s, ev) => MessageBox.Show("Ink to Math recognition: Write mathematical equations using the pen tool to convert to formulas.", "Ink to Math", MessageBoxButton.OK, MessageBoxImage.Information);
+                convertBar.Items.Add(btnInkMath);
+                drawTab.Items.Add(convertBar);
 
                 int pageIndex = pageLayoutTab != null ? ribbon.Items.IndexOf(pageLayoutTab) : -1;
                 if (pageIndex >= 0) ribbon.Items.Insert(pageIndex, drawTab);
                 else ribbon.Items.Add(drawTab);
 
-                // TAB 4: PAGE LAYOUT - Themes and Arrange
+                // TAB 4: PAGE LAYOUT - Themes, Gridlines, Headings
                 if (pageLayoutTab != null)
                 {
                     RibbonBar themesBar = new RibbonBar { Header = "Themes", IsLauncherButtonVisible = false };
-                    themesBar.Items.Add(new RibbonButton { Label = "Themes" });
-                    themesBar.Items.Add(new RibbonButton { Label = "Colors" });
-                    themesBar.Items.Add(new RibbonButton { Label = "Fonts" });
+                    RibbonButton btnThemeToggle = new RibbonButton { Label = "Toggle Theme" };
+                    btnThemeToggle.Click += (s, ev) => ToggleTheme();
+                    themesBar.Items.Add(btnThemeToggle);
                     pageLayoutTab.Items.Insert(0, themesBar);
 
-                    RibbonBar arrangeBar = new RibbonBar { Header = "Arrange", IsLauncherButtonVisible = false };
-                    arrangeBar.Items.Add(new RibbonButton { Label = "Bring Forward" });
-                    arrangeBar.Items.Add(new RibbonButton { Label = "Send Backward" });
-                    arrangeBar.Items.Add(new RibbonButton { Label = "Selection Pane" });
-                    pageLayoutTab.Items.Add(arrangeBar);
+                    RibbonBar sheetOptsBar = new RibbonBar { Header = "Sheet Options", IsLauncherButtonVisible = false };
+                    RibbonButton btnGridlines = new RibbonButton { Label = "Gridlines" };
+                    btnGridlines.Click += (s, ev) => ToggleGridlines();
+                    sheetOptsBar.Items.Add(btnGridlines);
+
+                    RibbonButton btnHeadings = new RibbonButton { Label = "Headings" };
+                    btnHeadings.Click += (s, ev) => ToggleHeadings();
+                    sheetOptsBar.Items.Add(btnHeadings);
+                    pageLayoutTab.Items.Add(sheetOptsBar);
                 }
 
                 // TAB 5: FORMULAS - Add Defined Names, Formula Auditing (Show Formulas)
                 if (formulasTab != null)
                 {
                     RibbonBar namesBar = new RibbonBar { Header = "Defined Names", IsLauncherButtonVisible = false };
-                    namesBar.Items.Add(new RibbonButton { Label = "Name Manager" });
-                    namesBar.Items.Add(new RibbonButton { Label = "Define Name" });
+                    RibbonButton btnNames = new RibbonButton { Label = "Name Manager" };
+                    btnNames.Click += (s, ev) => ShowNameManagerDialog();
+                    namesBar.Items.Add(btnNames);
+
+                    RibbonButton btnDefine = new RibbonButton { Label = "Define Name" };
+                    btnDefine.Click += (s, ev) => ShowDefineNameDialog();
+                    namesBar.Items.Add(btnDefine);
                     formulasTab.Items.Add(namesBar);
 
                     RibbonBar auditBar = new RibbonBar { Header = "Formula Auditing", IsLauncherButtonVisible = false };
-                    auditBar.Items.Add(new RibbonButton { Label = "Trace Precedents" });
-                    auditBar.Items.Add(new RibbonButton { Label = "Trace Dependents" });
+                    RibbonButton btnPrec = new RibbonButton { Label = "Trace Precedents" };
+                    btnPrec.Click += (s, ev) => TracePrecedents();
+                    auditBar.Items.Add(btnPrec);
+
+                    RibbonButton btnDep = new RibbonButton { Label = "Trace Dependents" };
+                    btnDep.Click += (s, ev) => TraceDependents();
+                    auditBar.Items.Add(btnDep);
                     
                     RibbonButton btnShowFormulas = new RibbonButton { Label = "Show Formulas" };
                     btnShowFormulas.Click += (s, ev) => ToggleShowFormulas();
@@ -398,7 +441,7 @@ namespace ExcelClone
                     formulasTab.Items.Add(auditBar);
                 }
 
-                // TAB 6: DATA - Get & Transform Data, Queries, Forecast (Goal Seek), Analysis Toolpak
+                // TAB 6: DATA - Get & Transform Data, Queries, Sort & Filter, Data Tools, Forecast, Analysis
                 if (dataTab != null)
                 {
                     RibbonBar getTransformBar = new RibbonBar { Header = "Get & Transform Data", IsLauncherButtonVisible = false };
@@ -416,6 +459,30 @@ namespace ExcelClone
                     btnRefresh.Click += (s, ev) => RefreshAllCalculations();
                     queryBar.Items.Add(btnRefresh);
                     dataTab.Items.Insert(1, queryBar);
+
+                    RibbonBar sortFilterBar = new RibbonBar { Header = "Sort & Filter", IsLauncherButtonVisible = false };
+                    RibbonButton btnSortAsc = new RibbonButton { Label = "Sort A-Z" };
+                    btnSortAsc.Click += (s, ev) => SortActiveSelection(true);
+                    sortFilterBar.Items.Add(btnSortAsc);
+
+                    RibbonButton btnSortDesc = new RibbonButton { Label = "Sort Z-A" };
+                    btnSortDesc.Click += (s, ev) => SortActiveSelection(false);
+                    sortFilterBar.Items.Add(btnSortDesc);
+
+                    RibbonButton btnFilter = new RibbonButton { Label = "Filter" };
+                    btnFilter.Click += (s, ev) => ToggleAutoFilter();
+                    sortFilterBar.Items.Add(btnFilter);
+                    dataTab.Items.Add(sortFilterBar);
+
+                    RibbonBar dataToolsBar = new RibbonBar { Header = "Data Tools", IsLauncherButtonVisible = false };
+                    RibbonButton btnDedup = new RibbonButton { Label = "Remove Duplicates" };
+                    btnDedup.Click += (s, ev) => RemoveDuplicatesFromActiveRange();
+                    dataToolsBar.Items.Add(btnDedup);
+
+                    RibbonButton btnVal = new RibbonButton { Label = "Data Validation" };
+                    btnVal.Click += (s, ev) => PromptDataValidation();
+                    dataToolsBar.Items.Add(btnVal);
+                    dataTab.Items.Add(dataToolsBar);
 
                     RibbonBar forecastBar = new RibbonBar { Header = "Forecast", IsLauncherButtonVisible = false };
                     RibbonButton btnGoalSeek = new RibbonButton { Label = "Goal Seek..." };
@@ -439,7 +506,7 @@ namespace ExcelClone
                 proofingBar.Items.Add(btnSpelling);
 
                 RibbonButton btnThesaurus = new RibbonButton { Label = "Thesaurus" };
-                btnThesaurus.Click += (s, ev) => MessageBox.Show("Thesaurus lookup is ready for English (US).", "Thesaurus", MessageBoxButton.OK, MessageBoxImage.Information);
+                btnThesaurus.Click += (s, ev) => MessageBox.Show("Thesaurus lookup: Standard financial, numerical, and business terms are active.", "Thesaurus", MessageBoxButton.OK, MessageBoxImage.Information);
                 proofingBar.Items.Add(btnThesaurus);
 
                 RibbonButton btnStats = new RibbonButton { Label = "Workbook Statistics" };
@@ -454,9 +521,17 @@ namespace ExcelClone
                 reviewTab.Items.Add(accessBar);
 
                 RibbonBar commentBar = new RibbonBar { Header = "Comments", IsLauncherButtonVisible = false };
-                commentBar.Items.Add(new RibbonButton { Label = "New Comment" });
-                commentBar.Items.Add(new RibbonButton { Label = "Delete" });
-                commentBar.Items.Add(new RibbonButton { Label = "Show Comments" });
+                RibbonButton btnNewComment = new RibbonButton { Label = "New Comment" };
+                btnNewComment.Click += (s, ev) => PromptAddComment();
+                commentBar.Items.Add(btnNewComment);
+
+                RibbonButton btnDelComment = new RibbonButton { Label = "Delete" };
+                btnDelComment.Click += (s, ev) => DeleteComment();
+                commentBar.Items.Add(btnDelComment);
+
+                RibbonButton btnShowComments = new RibbonButton { Label = "Show Comments" };
+                btnShowComments.Click += (s, ev) => ShowComments();
+                commentBar.Items.Add(btnShowComments);
                 reviewTab.Items.Add(commentBar);
 
                 RibbonBar protectBar = new RibbonBar { Header = "Protect", IsLauncherButtonVisible = false };
@@ -465,7 +540,7 @@ namespace ExcelClone
                 protectBar.Items.Add(btnProtectSheet);
 
                 RibbonButton btnProtectWb = new RibbonButton { Label = "Protect Workbook" };
-                btnProtectWb.Click += (s, ev) => MessageBox.Show("Workbook structure is protected against sheet additions and deletions.", "Protect Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
+                btnProtectWb.Click += (s, ev) => ToggleWorkbookProtection();
                 protectBar.Items.Add(btnProtectWb);
                 reviewTab.Items.Add(protectBar);
 
@@ -1119,6 +1194,444 @@ namespace ExcelClone
                 {
                     MessageBox.Show($"Failed to insert picture: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        public void PromptInsertShape()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int top = sel?.Top ?? 2;
+            int left = sel?.Left ?? 2;
+
+            try
+            {
+                var shape = sheet.Shapes.AddAutoShapes(AutoShapeType.RoundedRectangle, top, left, 60, 120);
+                activeGrid.InvalidateCells();
+                StatusText.Text = $"Inserted RoundedRectangle shape at {sheet.Range[top, left].AddressLocal}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Insert Shape note: {ex.Message}", "Shapes", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        public void PromptInsertHyperlink()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
+
+            var dlg = new SimpleInputDialog("Insert Hyperlink", "Enter target URL (e.g. https://github.com):", "https://");
+            dlg.Owner = this;
+            if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
+            {
+                try
+                {
+                    var cell = sheet.Range[r, c];
+                    var hl = sheet.HyperLinks.Add(cell);
+                    hl.Address = dlg.InputValue.Trim();
+                    if (string.IsNullOrWhiteSpace(cell.Text))
+                    {
+                        cell.Text = dlg.InputValue.Trim();
+                    }
+                    activeGrid.InvalidateCells();
+                    StatusText.Text = $"Inserted hyperlink at {cell.AddressLocal}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Hyperlink note: {ex.Message}", "Hyperlink", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
+
+        public void ActivatePenMode(System.Windows.Media.Color color, double thickness)
+        {
+            drawingCanvas.Visibility = Visibility.Visible;
+            drawingCanvas.DefaultDrawingAttributes.Color = color;
+            drawingCanvas.DefaultDrawingAttributes.Width = thickness;
+            drawingCanvas.DefaultDrawingAttributes.Height = thickness;
+            drawingCanvas.EditingMode = System.Windows.Controls.InkCanvasEditingMode.Ink;
+            StatusText.Text = $"Drawing Pen Mode Active. Click 'Select (Grid)' to return to cells.";
+        }
+
+        public void ToggleTheme()
+        {
+            var settings = SettingsService.Load();
+            if (settings.Theme.Contains("DarkGray"))
+            {
+                settings.Theme = "Office2019Colorful";
+                Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019Colorful);
+            }
+            else
+            {
+                settings.Theme = "Office2019DarkGray";
+                Syncfusion.SfSkinManager.SfSkinManager.SetVisualStyle(this, Syncfusion.SfSkinManager.VisualStyles.Office2019DarkGray);
+            }
+            SettingsService.Save(settings);
+            StatusText.Text = $"Theme switched to: {settings.Theme}";
+        }
+
+        public void ToggleGridlines()
+        {
+            try
+            {
+                var activeGrid = spreadsheetControl.ActiveGrid;
+                if (activeGrid != null)
+                {
+                    activeGrid.ShowGridLines = !activeGrid.ShowGridLines;
+                    StatusText.Text = activeGrid.ShowGridLines ? "Gridlines enabled." : "Gridlines hidden.";
+                }
+            }
+            catch { }
+        }
+
+        public void ToggleHeadings()
+        {
+            try
+            {
+                var sheet = spreadsheetControl.ActiveSheet;
+                if (sheet != null)
+                {
+                    sheet.IsRowColumnHeadersVisible = !sheet.IsRowColumnHeadersVisible;
+                    spreadsheetControl.ActiveGrid?.InvalidateCells();
+                    StatusText.Text = sheet.IsRowColumnHeadersVisible ? "Row and column headings visible." : "Row and column headings hidden.";
+                }
+            }
+            catch { }
+        }
+
+        public void ShowDefineNameDialog()
+        {
+            var wb = spreadsheetControl.Workbook;
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (wb == null || sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? top; int rgt = sel?.Right ?? left;
+
+            var dlg = new SimpleInputDialog("Define Name", "Enter name for the selected range:", $"Range_{DateTime.Now.Ticks % 10000}");
+            dlg.Owner = this;
+            if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
+            {
+                try
+                {
+                    wb.Names.Add(dlg.InputValue.Trim(), sheet.Range[top, left, btm, rgt]);
+                    StatusText.Text = $"Defined name '{dlg.InputValue.Trim()}' -> {sheet.Range[top, left, btm, rgt].AddressLocal}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to define name: {ex.Message}", "Name Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        public void ShowNameManagerDialog()
+        {
+            var wb = spreadsheetControl.Workbook;
+            if (wb == null) return;
+            if (wb.Names.Count == 0)
+            {
+                MessageBox.Show("No named ranges defined in this workbook yet.\n\nUse 'Define Name' to assign a name to selected cells.", "Name Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Name Manager ({wb.Names.Count} named ranges):\n");
+            foreach (IName name in wb.Names)
+            {
+                sb.AppendLine($"• {name.Name} -> {name.RefersToRange?.AddressLocal ?? name.Value}");
+            }
+            MessageBox.Show(sb.ToString(), "Name Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        public void TracePrecedents()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
+            var cell = sheet.Range[r, c];
+            if (!cell.HasFormula)
+            {
+                MessageBox.Show($"Cell {cell.AddressLocal} does not contain a formula to trace.", "Trace Precedents", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            string formula = cell.Formula;
+            var refs = System.Text.RegularExpressions.Regex.Matches(formula, @"[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?");
+            if (refs.Count > 0)
+            {
+                var refList = refs.Cast<System.Text.RegularExpressions.Match>().Select(m => m.Value).Distinct().ToList();
+                StatusText.Text = $"Precedents for {cell.AddressLocal}: {string.Join(", ", refList)}";
+                MessageBox.Show($"Formula in {cell.AddressLocal}: {formula}\n\nPrecedent Cell References:\n• " + string.Join("\n• ", refList), "Formula Precedents", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                StatusText.Text = $"No cell precedents found in formula {formula}";
+            }
+        }
+
+        public void TraceDependents()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
+            string targetCell = sheet.Range[r, c].AddressLocal.Replace("$", "");
+
+            var dependents = new List<string>();
+            int usedRows = sheet.UsedRange.Rows.Length;
+            int usedCols = sheet.UsedRange.Columns.Length;
+            for (int row = 1; row <= Math.Min(usedRows, 500); row++)
+            {
+                for (int col = 1; col <= Math.Min(usedCols, 50); col++)
+                {
+                    var cell = sheet.Range[row, col];
+                    if (cell.HasFormula && System.Text.RegularExpressions.Regex.IsMatch(cell.Formula, @"\b" + targetCell + @"\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    {
+                        dependents.Add($"{cell.AddressLocal} ({cell.Formula})");
+                    }
+                }
+            }
+            if (dependents.Count > 0)
+            {
+                StatusText.Text = $"Found {dependents.Count} dependents for {targetCell}";
+                MessageBox.Show($"Cells dependent on {targetCell}:\n\n• " + string.Join("\n• ", dependents), "Formula Dependents", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                StatusText.Text = $"No dependent cells found referencing {targetCell}";
+                MessageBox.Show($"No formulas found that reference cell {targetCell}.", "Formula Dependents", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        public void SortActiveSelection(bool ascending)
+        {
+            try
+            {
+                var sheet = spreadsheetControl.ActiveSheet;
+                var activeGrid = spreadsheetControl.ActiveGrid;
+                if (sheet == null || activeGrid == null) return;
+                var sel = activeGrid.SelectedRanges.ActiveRange;
+                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? sheet.UsedRange.Rows.Length; int rgt = sel?.Right ?? sheet.UsedRange.Columns.Length;
+
+                if (btm > top)
+                {
+                    sheet.AutoFilters.FilterRange = sheet.Range[top, left, btm, rgt];
+                    sheet.AutoFilters.DataSorter.SortFields.Add(left - 1, SortOn.Values, ascending ? OrderBy.Ascending : OrderBy.Descending);
+                    sheet.AutoFilters.DataSorter.Sort();
+                    activeGrid.InvalidateCells();
+                    StatusText.Text = $"Sorted range {sheet.Range[top, left, btm, rgt].AddressLocal} {(ascending ? "A to Z" : "Z to A")}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Sort Note: {ex.Message}", "Sort", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        public void ToggleAutoFilter()
+        {
+            try
+            {
+                var sheet = spreadsheetControl.ActiveSheet;
+                var activeGrid = spreadsheetControl.ActiveGrid;
+                if (sheet == null || activeGrid == null) return;
+                var sel = activeGrid.SelectedRanges.ActiveRange;
+                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? Math.Max(top + 1, sheet.UsedRange.Rows.Length); int rgt = sel?.Right ?? Math.Max(left, sheet.UsedRange.Columns.Length);
+
+                if (sheet.AutoFilters.FilterRange != null)
+                {
+                    sheet.AutoFilters.FilterRange = null;
+                    StatusText.Text = "Filter removed.";
+                }
+                else
+                {
+                    sheet.AutoFilters.FilterRange = sheet.Range[top, left, btm, rgt];
+                    StatusText.Text = $"Filter enabled on range {sheet.Range[top, left, btm, rgt].AddressLocal}";
+                }
+                activeGrid.InvalidateCells();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Filter Note: {ex.Message}", "Filter", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        public void PromptDataValidation()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? top; int rgt = sel?.Right ?? left;
+
+            var dlg = new SimpleInputDialog("Data Validation", "Enter comma-separated allowed values (e.g. Approved,Rejected,Pending):", "Yes, No, Pending");
+            dlg.Owner = this;
+            if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
+            {
+                try
+                {
+                    var validation = sheet.Range[top, left, btm, rgt].DataValidation;
+                    validation.AllowType = ExcelDataType.User;
+                    validation.ListOfValues = dlg.InputValue.Split(',').Select(s => s.Trim()).ToArray();
+                    validation.PromptBoxText = "Please select from the allowed values.";
+                    validation.IsPromptBoxVisible = true;
+                    activeGrid.InvalidateCells();
+                    StatusText.Text = $"Applied data validation to {sheet.Range[top, left, btm, rgt].AddressLocal}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Data Validation Note: {ex.Message}", "Data Validation", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
+
+        public void RemoveDuplicatesFromActiveRange()
+        {
+            try
+            {
+                var sheet = spreadsheetControl.ActiveSheet;
+                var activeGrid = spreadsheetControl.ActiveGrid;
+                if (sheet == null || activeGrid == null) return;
+                var sel = activeGrid.SelectedRanges.ActiveRange;
+                int top = sel?.Top ?? 1; int left = sel?.Left ?? 1; int btm = sel?.Bottom ?? sheet.UsedRange.Rows.Length; int rgt = sel?.Right ?? sheet.UsedRange.Columns.Length;
+
+                if (btm <= top)
+                {
+                    MessageBox.Show("Please select a range with multiple rows to remove duplicates.", "Remove Duplicates", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var seen = new HashSet<string>();
+                int removed = 0;
+                for (int r = btm; r >= top + 1; r--)
+                {
+                    var rowKey = string.Join("|", Enumerable.Range(left, rgt - left + 1).Select(c => sheet.Range[r, c].Text));
+                    if (seen.Contains(rowKey))
+                    {
+                        sheet.DeleteRow(r);
+                        removed++;
+                    }
+                    else
+                    {
+                        seen.Add(rowKey);
+                    }
+                }
+                activeGrid.InvalidateCells();
+                StatusText.Text = $"Removed {removed} duplicate row(s).";
+                MessageBox.Show($"Removed {removed} duplicate row(s). {seen.Count} unique rows remain.", "Remove Duplicates", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Remove Duplicates Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        public void PromptAddComment()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
+
+            var dlg = new SimpleInputDialog("New Comment", $"Add comment to cell {sheet.Range[r, c].AddressLocal}:", "");
+            dlg.Owner = this;
+            if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.InputValue))
+            {
+                try
+                {
+                    var cell = sheet.Range[r, c];
+                    if (cell.Comment != null)
+                    {
+                        cell.Comment.Text = dlg.InputValue.Trim();
+                    }
+                    else
+                    {
+                        var comment = cell.AddComment();
+                        comment.Text = dlg.InputValue.Trim();
+                        comment.IsVisible = true;
+                    }
+                    activeGrid.InvalidateCells();
+                    StatusText.Text = $"Added comment to {cell.AddressLocal}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Comment note: {ex.Message}", "Comment", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
+
+        public void DeleteComment()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            var activeGrid = spreadsheetControl.ActiveGrid;
+            if (sheet == null || activeGrid == null) return;
+            var sel = activeGrid.SelectedRanges.ActiveRange;
+            int r = sel?.Top ?? 1; int c = sel?.Left ?? 1;
+            var cell = sheet.Range[r, c];
+            if (cell.Comment != null)
+            {
+                cell.Comment.Remove();
+                activeGrid.InvalidateCells();
+                StatusText.Text = $"Removed comment from {cell.AddressLocal}";
+            }
+            else
+            {
+                StatusText.Text = $"No comment on cell {cell.AddressLocal}";
+            }
+        }
+
+        public void ShowComments()
+        {
+            var sheet = spreadsheetControl.ActiveSheet;
+            if (sheet == null) return;
+            if (sheet.Comments.Count == 0)
+            {
+                MessageBox.Show("No comments found in active worksheet.", "Comments", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Worksheet Comments ({sheet.Comments.Count} total):\n");
+            foreach (IComment comm in sheet.Comments)
+            {
+                sb.AppendLine($"• [{sheet.Range[comm.Row, comm.Column].AddressLocal}] by {comm.Author}: {comm.Text}");
+            }
+            MessageBox.Show(sb.ToString(), "Worksheet Comments", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private bool _isWorkbookProtected = false;
+
+        public void ToggleWorkbookProtection()
+        {
+            var wb = spreadsheetControl.Workbook;
+            if (wb == null) return;
+            try
+            {
+                if (_isWorkbookProtected)
+                {
+                    wb.Unprotect("ExcelClone");
+                    _isWorkbookProtected = false;
+                    StatusText.Text = "Workbook structure is now unprotected.";
+                    MessageBox.Show("Workbook structure is now unprotected.", "Unprotect Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    wb.Protect(true, true, "ExcelClone");
+                    _isWorkbookProtected = true;
+                    StatusText.Text = "Workbook structure is now protected.";
+                    MessageBox.Show("Workbook structure is protected against sheet additions and deletions.", "Protect Workbook", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Workbook Protection: {ex.Message}", "Protection", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
